@@ -61,10 +61,11 @@ A linux operating system. We recommend Kali Linux 2 or Kali 2016.1 rolling. Kali
 - [x] Wifi List Bug 
 
 ## :octocat: Credits
-1. Deltax @FLuX and Fluxion main developer 
-2. Strasharo @Fluxion help to fix DHCPD and pyrit problems, spelling mistakes
-3. vk439 @Linset main developer of linset 
-4. ApatheticEuphoria @Wifi-Slaughter WPS Crack 
-5. Derv82 @Wifite/2 
-6. Sophron @Wifiphisher
-7. sensepost @Mana
+1. DidyMond main developer for this project
+2. Deltax @FLuX and Fluxion main developer for original project 
+3. Strasharo @Fluxion help to fix DHCPD and pyrit problems, spelling mistakes
+4. vk439 @Linset main developer of linset 
+5. ApatheticEuphoria @Wifi-Slaughter WPS Crack 
+6. Derv82 @Wifite/2 
+7. Sophron @Wifiphisher
+8. sensepost @Mana
