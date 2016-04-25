@@ -255,13 +255,13 @@ function mostrarheader(){
 	conditional_clear
 	echo -e "$blue#########################################################"
 	echo -e "$blue#                                                       #"
-  echo -e "$blue#  $red    FLUXION $version" "${yellow} ${red}  < F""${yellow}luxion" "${red}I""${yellow}s" "${red}T""${yellow}he ""${red}F""${yellow}uture >     "          ${blue}"  #" 
-	echo -e "$blue#"${yellow} by "${red}D""${yellow}eltax", "${red}"S""${yellow}"trasharo and "${red}A""${yellow}patheticEuphoria"           "    ${blue}#""      
+  	echo -e "$blue#  $red    FLUXION $version" "${yellow} ${red}  < F""${yellow}luxion" "${red}I""${yellow}s" "${red}T""${yellow}he ""${red}F""${yellow}uture >     "          ${blue}"  #" 
+	echo -e "$blue#${yellow}       by "${red}D""${yellow}eltax", "${red}"S""${yellow}"trasharo and "${red}A""${yellow}patheticEuphoria"           "     ${blue}#"
+	echo -e "$blue#${yellow}                 "${red}M""${yellow}odded" by "${red}"D""${yellow}"idy"${red}M""${yellow}ond"                            "                   ${blue}#"	
 	echo -e "$blue#                                                       #"
 	echo -e "$blue#########################################################""$transparent"
 	echo
 	echo
-
 }
 
 ##################################### < END OF CONFIGURATION SECTION > #####################################
@@ -507,8 +507,10 @@ if [ $FLUX_DEBUG != 1 ]; then
 	
 	sleep 1
 	echo -e $red"                     FLUX "$white""$version" (rev. "$green "$revision"$white") "$yellow"by "$white" deltax"
+	echo -e $white"                     	     (mod "$yellow"by"$white" DidyMond) "
 	sleep 1
-	echo -e $green "           Page:"$red" https://github.com/deltaxflux/fluxion "$transparent
+	echo -e $green "           Master Project:"$red" https://github.com/deltaxflux/fluxion "$transparent
+	echo -e $green "           Forked Project:"$red" https://github.com/DidyMond/fluxion "$transparent
 	sleep 1
 	echo -n "                              Latest rev."
 	tput civis
@@ -1342,7 +1344,7 @@ echo -e ""$blue"1)"$transparent" 1 Adapter"
 echo -e ""$blue"2)"$transparent" 2 Adapters"
 echo -e ""$blue"3)"$transparent" 3 Adapters"
 echo -e ""$blue"4)"$transparent" 4 Adapters "
-echo -e "      "$blue"5)"$transparent" 5 Adapters"
+echo -e ""$blue"5)"$transparent" 5 Adapters"
 	
 read a
 case $a in
