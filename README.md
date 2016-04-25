@@ -3,25 +3,52 @@ Fluxion is a remake of linset by vk439 with fixed bugs and added features. It's 
 
 ## :scroll: Changelog
 Fluxion gets updated weekly with new features, improvements and bugfixes. 
-Be sure to check out the [Channelog] (https://github.com/deltaxflux/fluxion)
-
-
 
 
 ## :book: How it works
 
 * Scan the networks.
 * Capture handshake (can't be used without a valid handshake, it's necessary to verify the password)
-* Use WEB Interface *
+* Use WEB Interface
+	* Some standard pages
+	* Some real pages of routers 
 * Launches a FakeAP instance imitating the original access point
 * Spawns a MDK3 processs, which deauthentificates all of the users connected to the target network, so they can be lured to connect to FakeAP network and enter the WPA password.
-* A DHCP server is lainched in FakeAP network
+* A DHCP server is launched in FakeAP network
 * A fake DNS server is launched in order to capture all of the DNS requests and redirect them to the host running the script
 * A captive portal is launched in order to serve a page, which prompts the user to enter their WPA password
+	* Real pages simulate a firmware update 
 * Each submitted password is verified against the handshake captured earlier
 * The attack will automatically terminate once correct password is submitted
 
+##  :question: How configure template?
 
+still working
+
+##  :question: Which template are contained?
+
+* Alice
+* Asus
+* Belkin
+* Cisco
+* Cisco Linksys
+* Digicom
+* Dlink
+* FritzBox!
+* Huawei
+* Netgear
+* Netis
+* Sitecom
+* Technicolor
+* Telecom
+* TPLink
+* Zyxel
+
+
+
+##  :heavy_exclamation_mark: Requirements
+
+A linux operating system. We recommend Kali Linux 2 or Kali 2016.1 rolling. Kali 2 & 2016 support the latest aircrack-ng versions. A external wifi card that supports packet injection is recommended.
 
 
 ##  :eight_spoked_asterisk: Bugs fixed
@@ -30,7 +57,6 @@ Be sure to check out the [Channelog] (https://github.com/deltaxflux/fluxion)
 - [x] Added airmon 
 - [x] Translate DE --> EN
 - [x] Handshake get fixed 
-- [x] Check Updates 
 - [x] Animations
 - [x] Wifi List Bug 
 
