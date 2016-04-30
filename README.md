@@ -2,8 +2,8 @@
 Fluxion is a remake of linset by vk439 with fixed bugs and added features. It's compatible with the latest release of Kali (Rolling)
 
 ## :scroll: Changelog
-30/04/2016:
------------
+##### 30/04/2016:
+---
 * First release with template page
 
 
