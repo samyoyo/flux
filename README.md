@@ -2,7 +2,9 @@
 Fluxion is a remake of linset by vk439 with fixed bugs and added features. It's compatible with the latest release of Kali (Rolling)
 
 ## :scroll: Changelog
-Fluxion gets updated weekly with new features, improvements and bugfixes. 
+30/04/2016:
+-----------
+* First release with template page
 
 
 ## :book: How it works
@@ -23,7 +25,12 @@ Fluxion gets updated weekly with new features, improvements and bugfixes.
 
 ##  :question: How configure template?
 
-still working
+Nothing to configure! Just follow these steps:
+* Press "[Download ZIP](https://github.com/DidyMond/fluxion/archive/master.zip)"
+* Unzip the file
+* Enter into extracted directory
+* Run `sudo ./Installer.sh` to be sure you have all the updated script
+* Finally, to launch the program: `sudo ./fluxion`
 
 ##  :question: Which template are contained?
 
@@ -43,8 +50,6 @@ still working
 * Telecom
 * TPLink
 * Zyxel
-
-
 
 ##  :heavy_exclamation_mark: Requirements
 
