@@ -1,5 +1,4 @@
 #!/bin/bash
-<<<<<<< HEAD
 ##Only for Kali 
 
 ####### < Color > #######
@@ -10,7 +9,6 @@ red="\033[1;31m"
 green="\033[1;32m"
 yellow="\033[1;33m"
 blue="\033[1;34m"
-=======
 
 INSTALLER_DEBUG=1
 #Config
@@ -20,7 +18,6 @@ revision=4
 red='\e[1;31m'
 blue='\e[1;34m'
 yellow='\e[1;33m'
->>>>>>> upstream/master
 transparent="\e[0m"
 
 #DUMP_PATH

@@ -19,24 +19,14 @@ clear
 # Template directory
 SPECIFIC_WEB_PAGE="./Sites/Template"
 DUMP_PATH="/tmp/TMPflux"                               
-=======
-DUMP_PATH="/tmp/TMPflux"
->>>>>>> upstream/master
 HANDSHAKE_PATH="/root/handshakes"
 PASSLOG_PATH="/root/pwlog"
 WORK_DIR=`pwd`
 ipNmap=`ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'`
 # Deauth duration during handshake capture
-<<<<<<< HEAD
-DEAUTHTIME="20"
-version=1.0
-revision=01
-=======
-# oo
 DEAUTHTIME="9999999999999"
 revision=38
 version=0.23
->>>>>>> upstream/master
 IP=192.168.1.1
 RANG_IP=$(echo $IP | cut -d "." -f 1,2,3)
 
@@ -79,8 +69,6 @@ airmon
 
 # Check Updates
 function checkupdatess {
-<<<<<<< HEAD
-	
     version_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^version" | cut -d "=" -f2)"
     if [ -z "$version_online" ]; then
 		echo "?">$DUMP_PATH/Iver
@@ -89,16 +77,11 @@ function checkupdatess {
 	fi
     
 	revision_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^revision" | cut -d "=" -f2)"
-=======
-
-	revision_online="$(timeout -s SIGTERM 20 curl -L "https://sites.google.com/site/deltaxflux/fluxion" 2>/dev/null| grep "^revision" | cut -d "=" -f2)"
->>>>>>> upstream/master
-	if [ -z "$revision_online" ]; then
+    if [ -z "$revision_online" ]; then
 		echo "?">$DUMP_PATH/Irev
 	else
 		echo "$revision_online">$DUMP_PATH/Irev
 	fi
-
 }
 
 # Animation
@@ -288,14 +271,9 @@ function mostrarheader(){
 	conditional_clear
 	echo -e "$blue#########################################################"
 	echo -e "$blue#                                                       #"
-<<<<<<< HEAD
   	echo -e "$blue#  $red    FLUXION $version" "${yellow} ${red}  < F""${yellow}luxion" "${red}I""${yellow}s" "${red}T""${yellow}he ""${red}F""${yellow}uture >     "          ${blue}"   #" 
 	echo -e "$blue#${yellow}       by "${red}D""${yellow}eltax", "${red}"S""${yellow}"trasharo and "${red}A""${yellow}patheticEuphoria"           "     ${blue}#"
 	echo -e "$blue#${yellow}                 "${red}M""${yellow}odded" by "${red}"D""${yellow}"idy"${red}M""${yellow}ond"                            "                   ${blue}#"	
-=======
-  echo -e "$blue#  $red    FLUXION $version" "${yellow} ${red}  < F""${yellow}luxion" "${red}I""${yellow}s" "${red}T""${yellow}he ""${red}F""${yellow}uture >     "          ${blue}"  #"
-	echo -e "$blue#"${yellow} by "${red}D""${yellow}eltax", "${red}"S""${yellow}"trasharo and "${red}A""${yellow}patheticEuphoria"           "    ${blue}#""
->>>>>>> upstream/master
 	echo -e "$blue#                                                       #"
 	echo -e "$blue#########################################################""$transparent"
 	echo
@@ -574,7 +552,6 @@ if [ $FLUX_DEBUG != 1 ]; then
 	spinner "$!"
     version_online=$(cat $DUMP_PATH/Iver)
 	revision_online=$(cat $DUMP_PATH/Irev)
-<<<<<<< HEAD
 	echo -e ""$white" [${purple}${version_online}$white"$transparent"]"
     echo -n "                              Latest rev."
     echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
@@ -594,25 +571,6 @@ if [ $FLUX_DEBUG != 1 ]; then
 #				
 #			fi
 #		fi
-=======
-	echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
-		if [ "$revision_online" != "?" ]; then
-
-			if [ "$revision" != "$revision_online" ]; then
-
-				cp $0 $HOME/flux_rev-$revision.backup
-				curl -A "Mozilla/5.0 (X11; Linux x86_64; rv:11.0) Gecko/20100101 Firefox/11.0" -L https://sites.google.com/site/deltaxflux/fluxion -s -o $0
-				echo
-				echo
-				echo -e ""$red"
-Updated successfully! Restarting the script to apply the changes ..."$transparent""
-				sleep 5
-				chmod +x $0
-				exec $0
-
-			fi
-		fi
->>>>>>> upstream/master
 	echo ""
 	tput cnorm
 	sleep 2
@@ -1727,11 +1685,7 @@ echo -e ""$blue"2)"$transparent" 2 Adapters"
 echo -e ""$blue"3)"$transparent" 3 Adapters"
 echo -e ""$blue"4)"$transparent" 4 Adapters "
 echo -e ""$blue"5)"$transparent" 5 Adapters"
-<<<<<<< HEAD
-	
-=======
 
->>>>>>> upstream/master
 read a
 case $a in
 	1)
@@ -3468,61 +3422,22 @@ function webinterface {
 		echo
 
 		echo -e "$blue""      1)"$transparent" Web Interface"
-<<<<<<< HEAD
         echo -e "$blue""      2)"$transparent" Template Web Interface"
-		echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
-		
-=======
-		echo -e "$blue""      2)"$transparent" Bruteforce"
-		echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
-
->>>>>>> upstream/master
+		echo -e "$blue""      3)"$transparent" Bruteforce"
+        echo -e "$blue""      4)"$transparent" \e[1;31mExit"$transparent""
 		echo
 		echo -n "#? "
 		read yn
 		case $yn in
-<<<<<<< HEAD
-		1 ) matartodo; Menu; break;;
-		2 ) matartodo; MenuTemplate; break;;
-        3 ) matartodo; exitmode; break;;
-=======
-		1 ) matartodo; ConnectionRESET; selection; break;;
-		2 ) matartodo; Bruteforce2; break;;
-		3 ) matartodo; exitmode; break;;
->>>>>>> upstream/master
-		esac
+            1 ) matartodo; ConnectionRESET; selection; break;;
+            2 ) matartodo; MenuTemplate; break;;
+            3 ) matartodo; Bruteforce2; break;;
+            4 ) matartodo; exitmode; break;;
+        esac
 	done
 }
 
-<<<<<<< HEAD
-function Menu {
-        while true; do
-
-            mostrarheader
-    
-            echo "Select Login Page"
-            echo "                                       "
-                  echo -e "$blue""      1)"$transparent" Connection Reset [RECOMMENDED]" 
-                  echo -e "$blue""      2)"$transparent" Login Pages"
-                  echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
-                echo " "
-            echo -n '      #> '
-            read yn
-            case $yn in
-            1 ) matartodo; ConnectionRESET; selection; break;;
-            2 ) matartodo; LoginPages ;selection; break;;
-            3 ) matartodo; exitmode; break;;
-            * ) echo "Unknown option. Choose again"; conditional_clear ;;
-        esac
-    done
-}
-
-
 function ConnectionRESET {
-=======
-	function ConnectionRESET {
->>>>>>> upstream/master
-
 		while true; do
 			conditional_clear
 			mostrarheader
@@ -3669,8 +3584,6 @@ function ConnectionRESET {
 	attack
 }
 
-<<<<<<< HEAD
-
 function LoginPages {
 	
 	while true; do
@@ -3752,8 +3665,7 @@ function MenuTemplate {
     done
 }
 
-=======
->>>>>>> upstream/master
+
 # Create different settings required for the script
 function preattack {
 
