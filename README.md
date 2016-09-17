@@ -5,6 +5,11 @@ Fluxion is a remake of linset by vk496 with less bugs and more features. It's co
 ##### 01/07/2016:
 ---
 * Update from upstream
+* Add adb epicentro template
+
+##### 01/07/2016:
+---
+* Update from upstream
 
 ##### 30/04/2016:
 ---
@@ -43,6 +48,7 @@ Nothing to configure! Just follow these steps:
 
 ##  :question: Which template are contained?
 
+* Adb Epicentro
 * Alice
 * Asus
 * Belkin
@@ -94,15 +100,6 @@ A linux operating system. We recommend Kali Linux 2 or Kali 2016.1 rolling. Kali
 8. sensepost @Mana
 
 A linux operating system. We recommend Kali Linux 2 or Kali 2016.1 rolling. Kali 2 & 2016 support the latest aircrack-ng versions. A external wifi card is recommended. 
-
-## :octocat: Credits
-1. Deltax @FLuX and Fluxion main developer 
-2. Strasharo @Fluxion help to fix DHCPD and pyrit problems, spelling mistakes
-3. vk496 @Linset main developer of linset 
-4. ApatheticEuphoria @WPS-SLAUGHTER,Bruteforce Script,Help with Fluxion
-5. Derv82 @Wifite/2 
-6. Princeofguilty @webpages
-7. Photos for wiki @http://www.kalitutorials.net
 
 ## Useful links
  1. [wifislax] (http://www.wifislax.com/)
