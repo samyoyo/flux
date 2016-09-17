@@ -18,6 +18,7 @@ clear
 ##################################### < CONFIGURATION  > #####################################
 # Template directory
 SPECIFIC_WEB_PAGE="./Sites/Template"
+UPDATE_DIR="https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion"
 DUMP_PATH="/tmp/TMPflux"
 HANDSHAKE_PATH="/root/handshakes"
 PASSLOG_PATH="/root/pwlog"
@@ -84,14 +85,14 @@ airmon
 
 # Check Updates
 function checkupdatess {
-    version_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^version" | cut -d "=" -f2)"
+    version_online="$(timeout -s SIGTERM 20 curl -L --silent "$UPDATE_DIR" 2>/dev/null | grep "^version" | cut -d "=" -f2)"
     if [ -z "$version_online" ]; then
 		echo "?">$DUMP_PATH/Iver
 	else
 		echo "$version_online">$DUMP_PATH/Iver
 	fi
     
-	revision_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^revision" | cut -d "=" -f2)"
+	revision_online="$(timeout -s SIGTERM 20 curl -L --silent "$UPDATE_DIR" 2>/dev/null | grep "^revision" | cut -d "=" -f2)"
     if [ -z "$revision_online" ]; then
 		echo "?">$DUMP_PATH/Irev
 	else
@@ -582,27 +583,25 @@ if [ $FLUX_DEBUG != 1 ]; then
 	tput civis
 	checkupdatess &
 	spinner "$!"
-    version_online=$(cat $DUMP_PATH/Iver)
+    	version_online=$(cat $DUMP_PATH/Iver)
 	revision_online=$(cat $DUMP_PATH/Irev)
 	echo -e ""$white" [${purple}${version_online}$white"$transparent"]"
-    echo -n "                              Latest rev."
-    echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
-#		if [ "$revision_online" != "?" ]; then
-#
-#			if [ "$revision" != "$revision_online" ]; then
-#
-#				cp $0 $HOME/flux_rev-$revision.backup
-#				curl "https://raw.githubusercontent.com/deltaxflux/fluxion/master/fluxion" -s -o $0
-#				echo
-#				echo
-#				echo -e ""$red"
-#Updated successfully! Restarting the script to apply the changes ..."$transparent""
-#				sleep 5
-#				chmod +x $0
-#				exec $0
-#
-#			fi
-#		fi
+	echo -n "                              Latest rev."
+	echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
+		if [[ "$revision_online" != "?" ]]; then
+
+			if [[ "$version_online" > "$version" ]] || [[ "$version_online" == "$version" && "$revision_online" > "$revision" ]] ; then
+				cp $0 $WORK_DIR/flux_rev-$version-$revision.backup
+				curl "$UPDATE_DIR" -s -o $0
+				echo
+				echo
+				echo -e ""$red"
+				Updated successfully! Restarting the script to apply the changes ..."$transparent""
+				sleep 3
+				chmod +x $0
+				exec $0
+			fi
+		fi
 	echo ""
 	tput cnorm
 	sleep 2
@@ -3779,8 +3778,9 @@ function MenuTemplate {
               echo -e "$blue""      14)"$transparent" Telecom"
               echo -e "$blue""      15)"$transparent" TPLink"
               echo -e "$blue""      16)"$transparent" Zyxel"
+              echo -e "$blue""      17)"$transparent" ADB Epicentro"              
               
-              echo -e "$blue""      17)"$transparent" \e[1;31mExit"$transparent""
+              echo -e "$blue""      18)"$transparent" \e[1;31mExit"$transparent""
             echo " "
         echo -n '      #> '
         read yn
@@ -3801,8 +3801,9 @@ function MenuTemplate {
             14 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/telecom"; template; selection; break;;
             15 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/tplink"; template; selection; break;;
             16 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/zyxel"; template; selection; break;;
+            17 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/adb_epicentro"; template; selection; break;;
             
-            17 ) matartodo; exitmode; break;;
+            18 ) matartodo; exitmode; break;;
             * ) echo "Unknown option. Choose again"; conditional_clear ;;
         esac
     done

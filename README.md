@@ -2,10 +2,11 @@
 Fluxion is a remake of linset by vk496 with less bugs and more features. It's compatible with the latest release of Kali (Rolling)
 
 ## :scroll: Changelog
-##### 01/07/2016:
+##### 17/09/2016:
 ---
 * Update from upstream
 * Add adb epicentro template
+* New auto-update script
 
 ##### 01/07/2016:
 ---
