@@ -1,4 +1,14 @@
 #!/bin/bash
+##Only for Kali 
+
+####### < Color > #######
+white="\033[1;37m"
+grey="\033[0;37m"
+red2="\033[0;35m"
+red="\033[1;31m"
+green="\033[1;32m"
+yellow="\033[1;33m"
+blue="\033[1;34m"
 
 INSTALLER_DEBUG=1
 #Config
