@@ -13,7 +13,10 @@ clear
 
 ##################################### < CONFIGURATION  > #####################################
 
-				       
+# DEPENDENCIES
+dep=("aireplay-ng" "airodump-ng" "fakedns" "dhcpd" "lighttpd" "hostapd" "python")
+################
+
 DUMP_PATH="/tmp/TMPflux"                               
 # Number de desautentificaciones
 DEAUTHTIME="30"
@@ -34,31 +37,25 @@ transparent="\e[0m"
 ##############################################################################################
 
 # DEBUG MODE = 1 ; DEBUG MODE = 0 [Normal Mode / Developer Mode]
-if [ $FLUX_DEBUG = 1 ]; then
-	## Developer Mode
-	export flux_output_device=/dev/stdout
-	HOLD="-hold"
-else
-	## Normal Mode
-	export flux_output_device=/dev/null
-	HOLD=""
-fi
+
+case $FLUX_DEBUG in
+1) ## Developer Mode
+export flux_output_device=/dev/stdout && HOLD="-hold" ;;
+*) ## Normal Mode
+export flux_output_device=/dev/null && HOLD="" ;;
+esac
 
 # Delete Log only in Normal Mode !
 function conditional_clear() {
 	
-	if [[ "$flux_output_device" != "/dev/stdout" ]]; then clear; fi
+	[[ "$flux_output_device" != "/dev/stdout" ]] && clear
 }
 
 # Check Updates 
 function checkupdatess {
 	
 	revision_online="$(timeout -s SIGTERM 20 curl -L "https://sites.google.com/site/deltaxflux/flux" 2>/dev/null| grep "^revision" | cut -d "=" -f2)"
-	if [ -z "$revision_online" ]; then
-		echo "?">$DUMP_PATH/Irev
-	else
-		echo "$revision_online">$DUMP_PATH/Irev
-	fi
+	[ -z "$revision_online" ] && echo "?">$DUMP_PATH/Irev || echo "$revision_online">$DUMP_PATH/Irev
 	
 }
 
@@ -81,9 +78,7 @@ function spinner {
 # ERROR Report only in Developer Mode
 # FLUXION = Developer Mode 
 # Fluxass = Normal Mode 
-if [ "$FLUX_DEBUG" = "1" ]; then
-	trap 'err_report $FLUXION' ERR
-fi
+[ "$FLUX_DEBUG" = "1" ] && trap 'err_report $FLUXION' ERR
 
 # ERROR Report Normale Mode
 function err_report {
@@ -99,57 +94,12 @@ function exitmode {
 	
 	echo -e "\n\n"$white"["$red" "$white"] "$red"Cleaning and closing"$transparent""
 	
-	if ps -A | grep -q aireplay-ng; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"aireplay-ng"$transparent""
-		killall aireplay-ng &>$flux_output_device
-	fi
+	for APP in $dep; do if ps -A | grep -q $APP; then echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"$APP"$transparent"" && killall $APP &>$flux_output_device; fi; done
 	
-	if ps -A | grep -q airodump-ng; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"airodump-ng"$transparent""
-		killall airodump-ng &>$flux_output_device
-	fi
+	wifistuff=("$WIFI_MONITOR" "$WIFI")
+	for item in $wifistuff; do [ ! -z $item ] && echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$item"$transparent"" ; airmon-ng stop $item &> $flux_output_device; done
 	
-	if ps a | grep python| grep fakedns; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"python"$transparent""
-		kill $(ps a | grep python| grep fakedns | awk '{print $1}') &>$flux_output_device
-	fi
-	
-	if ps -A | grep -q hostapd; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"hostapd"$transparent""
-		killall hostapd &>$flux_output_device
-	fi
-	 
-	if ps -A | grep -q lighttpd; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"lighttpd"$transparent""
-		killall lighttpd &>$flux_output_device
-	fi
-	 
-	if ps -A | grep -q dhcpd; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"dhcpd"$transparent""
-		killall dhcpd &>$flux_output_device
-	fi
-	
-	if ps -A | grep -q mdk3; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"mdk3"$transparent""
-		killall mdk3 &>$flux_output_device
-	fi
-	
-	if [ "$WIFI_MONITOR" != "" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$WIFI_MONITOR"$transparent""
-		airmon-ng stop $WIFI_MONITOR &> $flux_output_device
-	fi
-	                                                
-                                                  
-                                                
-	if [ "$WIFI" != "" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$WIFI"$transparent""
-		airmon-ng stop $WIFI &> $flux_output_device
-	fi
-	
-	if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "0" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"ipforwarding"$transparent""
-		echo "0" > /proc/sys/net/ipv4/ip_forward #stop ipforwarding
-	fi
+	[ "$(cat /proc/sys/net/ipv4/ip_forward)" != "0" ] && echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"ipforwarding"$transparent"" && echo "0" > /proc/sys/net/ipv4/ip_forward #stop ipforwarding
 	
 	echo -e ""$white"["$red"-"$white"] "$white"Cleaning "$grey"iptables"$transparent""
 	iptables --flush 
@@ -160,11 +110,7 @@ function exitmode {
 	echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"tput"$transparent""
 	tput cnorm
 	
-	if [ $FLUX_DEBUG != 1 ]; then
-		
-		echo -e ""$white"["$red"-"$white"] "$white"Delete "$grey"files"$transparent""
-		rm -R $DUMP_PATH/* &>$flux_output_device
-	fi
+	[ $FLUX_DEBUG != 1 ] && echo -e ""$white"["$red"-"$white"] "$white"Delete "$grey"files"$transparent"" && rm -R $DUMP_PATH/* &>$flux_output_device
 	
 	echo -e ""$white"["$red"-"$white"] "$white"Restarting "$grey"NetworkManager"$transparent""
 	service restart network-manager &> $flux_output_device &
@@ -277,172 +223,11 @@ fi
 
 # Check requirements 
 function checkdependences {
+
+	needed=("aircrack-ng" "/usr/bin/php-cgi" "aireplay-ng" "airmon-ng" "airodump-ng" "awk" "curl" "dhcpd" "hostapd" "iwconfig" "lighttpd" "macchanger" "mdk3" "nmap" "unzip" "pyrit" "python" "xterm")
+	for need in $needed; do echo -ne "$needed ..." ;if ! hash $needed 2>/dev/null; then echo -e "\e[1;31mNot installed"$transparent"" ; salir=1; else echo -e "\e[1;32mOK!"$transparent""; fi; sleep 0.025; done
 	
-	echo -ne "Aircrack-ng....."
-	if ! hash aircrack-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Aireplay-ng....."
-	if ! hash aireplay-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Airmon-ng......."
-	if ! hash airmon-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Airodump-ng....."
-	if ! hash airodump-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Awk............."
-	if ! hash awk 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Curl............"
-	if ! hash curl 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Dhcpd..........."
-	if ! hash dhcpd 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent" (isc-dhcp-server)"
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Hostapd........."
-	if ! hash hostapd 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Iwconfig........"
-	if ! hash iwconfig 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Lighttpd........"
-	if ! hash lighttpd 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Macchanger......"
-	if ! hash macchanger 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-	    echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Mdk3............"
-	if ! hash mdk3 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Nmap............"
-	if ! [ -f /usr/bin/nmap ]; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Php5-cgi........"
-	if ! [ -f /usr/bin/php-cgi ]; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Pyrit..........."
-	if ! hash pyrit 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Python.........."
-	if ! hash python 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Unzip..........."
-	if ! hash unzip 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Xterm..........."
-	if ! hash xterm 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	if [ "$salir" = "1" ]; then
-	exit 1
-	fi
+	[ "$salir" = "1" ] && exit 1
 	
 	sleep 1
 	clear
