@@ -98,19 +98,13 @@ function exitmode {
 	
 	for APP in $dep; do
 		if ps -A | grep -q $APP; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"$APP"$transparent""
-		killall $APP &>$flux_output_device
+			echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"$APP"$transparent""
+			killall $APP &>$flux_output_device
+		fi
 	done
 	
-	if [ ! -z "$WIFI_MONITOR" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$WIFI_MONITOR"$transparent""
-		airmon-ng stop $WIFI_MONITOR &> $flux_output_device
-	fi
-	                                          
-	if [ ! -z "$WIFI" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$WIFI"$transparent""
-		airmon-ng stop $WIFI &> $flux_output_device
-	fi
+	wifistuff=("$WIFI_MONITOR" "$WIFI")
+	for item in $wifistuff; do [ ! -z $item ] && echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$item"$transparent"" ; airmon-ng stop $item &> $flux_output_device; done
 	
 	if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "0" ]; then
 		echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"ipforwarding"$transparent""
