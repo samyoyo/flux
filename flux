@@ -13,7 +13,10 @@ clear
 
 ##################################### < CONFIGURATION  > #####################################
 
-				       
+# DEPENDENCIES
+dep=("aireplay-ng" "airodump-ng" "fakedns" "dhcpd" "lighttpd" "hostapd" "python")
+################
+
 DUMP_PATH="/tmp/TMPflux"                               
 # Number de desautentificaciones
 DEAUTHTIME="30"
@@ -34,31 +37,25 @@ transparent="\e[0m"
 ##############################################################################################
 
 # DEBUG MODE = 1 ; DEBUG MODE = 0 [Normal Mode / Developer Mode]
-if [ $FLUX_DEBUG = 1 ]; then
-	## Developer Mode
-	export flux_output_device=/dev/stdout
-	HOLD="-hold"
-else
-	## Normal Mode
-	export flux_output_device=/dev/null
-	HOLD=""
-fi
+
+case $FLUX_DEBUG in
+1) ## Developer Mode
+export flux_output_device=/dev/stdout && HOLD="-hold" ;;
+*) ## Normal Mode
+export flux_output_device=/dev/null && HOLD="" ;;
+esac
 
 # Delete Log only in Normal Mode !
 function conditional_clear() {
 	
-	if [[ "$flux_output_device" != "/dev/stdout" ]]; then clear; fi
+	[[ "$flux_output_device" != "/dev/stdout" ]] && clear
 }
 
 # Check Updates 
 function checkupdatess {
 	
 	revision_online="$(timeout -s SIGTERM 20 curl -L "https://sites.google.com/site/deltaxflux/flux" 2>/dev/null| grep "^revision" | cut -d "=" -f2)"
-	if [ -z "$revision_online" ]; then
-		echo "?">$DUMP_PATH/Irev
-	else
-		echo "$revision_online">$DUMP_PATH/Irev
-	fi
+	[ -z "$revision_online" ] && echo "?">$DUMP_PATH/Irev || echo "$revision_online">$DUMP_PATH/Irev
 	
 }
 
@@ -99,49 +96,18 @@ function exitmode {
 	
 	echo -e "\n\n"$white"["$red" "$white"] "$red"Cleaning and closing"$transparent""
 	
-	if ps -A | grep -q aireplay-ng; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"aireplay-ng"$transparent""
-		killall aireplay-ng &>$flux_output_device
-	fi
+	for APP in $dep; do
+		if ps -A | grep -q $APP; then
+		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"$APP"$transparent""
+		killall $APP &>$flux_output_device
+	done
 	
-	if ps -A | grep -q airodump-ng; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"airodump-ng"$transparent""
-		killall airodump-ng &>$flux_output_device
-	fi
-	
-	if ps a | grep python| grep fakedns; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"python"$transparent""
-		kill $(ps a | grep python| grep fakedns | awk '{print $1}') &>$flux_output_device
-	fi
-	
-	if ps -A | grep -q hostapd; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"hostapd"$transparent""
-		killall hostapd &>$flux_output_device
-	fi
-	 
-	if ps -A | grep -q lighttpd; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"lighttpd"$transparent""
-		killall lighttpd &>$flux_output_device
-	fi
-	 
-	if ps -A | grep -q dhcpd; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"dhcpd"$transparent""
-		killall dhcpd &>$flux_output_device
-	fi
-	
-	if ps -A | grep -q mdk3; then
-		echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"mdk3"$transparent""
-		killall mdk3 &>$flux_output_device
-	fi
-	
-	if [ "$WIFI_MONITOR" != "" ]; then
+	if [ ! -z "$WIFI_MONITOR" ]; then
 		echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$WIFI_MONITOR"$transparent""
 		airmon-ng stop $WIFI_MONITOR &> $flux_output_device
 	fi
-	                                                
-                                                  
-                                                
-	if [ "$WIFI" != "" ]; then
+	                                          
+	if [ ! -z "$WIFI" ]; then
 		echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$WIFI"$transparent""
 		airmon-ng stop $WIFI &> $flux_output_device
 	fi
