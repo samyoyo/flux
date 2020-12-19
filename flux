@@ -78,9 +78,7 @@ function spinner {
 # ERROR Report only in Developer Mode
 # FLUXION = Developer Mode 
 # Fluxass = Normal Mode 
-if [ "$FLUX_DEBUG" = "1" ]; then
-	trap 'err_report $FLUXION' ERR
-fi
+[ "$FLUX_DEBUG" = "1" ] && trap 'err_report $FLUXION' ERR
 
 # ERROR Report Normale Mode
 function err_report {
@@ -96,20 +94,12 @@ function exitmode {
 	
 	echo -e "\n\n"$white"["$red" "$white"] "$red"Cleaning and closing"$transparent""
 	
-	for APP in $dep; do
-		if ps -A | grep -q $APP; then
-			echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"$APP"$transparent""
-			killall $APP &>$flux_output_device
-		fi
-	done
+	for APP in $dep; do if ps -A | grep -q $APP; then echo -e ""$white"["$red"-"$white"] "$white"Kill "$grey"$APP"$transparent"" && killall $APP &>$flux_output_device; fi; done
 	
 	wifistuff=("$WIFI_MONITOR" "$WIFI")
 	for item in $wifistuff; do [ ! -z $item ] && echo -e ""$white"["$red"-"$white"] "$white"Stopping interface "$green "$item"$transparent"" ; airmon-ng stop $item &> $flux_output_device; done
 	
-	if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "0" ]; then
-		echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"ipforwarding"$transparent""
-		echo "0" > /proc/sys/net/ipv4/ip_forward #stop ipforwarding
-	fi
+	[ "$(cat /proc/sys/net/ipv4/ip_forward)" != "0" ] && echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"ipforwarding"$transparent"" && echo "0" > /proc/sys/net/ipv4/ip_forward #stop ipforwarding
 	
 	echo -e ""$white"["$red"-"$white"] "$white"Cleaning "$grey"iptables"$transparent""
 	iptables --flush 
@@ -120,11 +110,7 @@ function exitmode {
 	echo -e ""$white"["$red"-"$white"] "$white"Restoring "$grey"tput"$transparent""
 	tput cnorm
 	
-	if [ $FLUX_DEBUG != 1 ]; then
-		
-		echo -e ""$white"["$red"-"$white"] "$white"Delete "$grey"files"$transparent""
-		rm -R $DUMP_PATH/* &>$flux_output_device
-	fi
+	[ $FLUX_DEBUG != 1 ] && echo -e ""$white"["$red"-"$white"] "$white"Delete "$grey"files"$transparent"" && rm -R $DUMP_PATH/* &>$flux_output_device
 	
 	echo -e ""$white"["$red"-"$white"] "$white"Restarting "$grey"NetworkManager"$transparent""
 	service restart network-manager &> $flux_output_device &
@@ -237,172 +223,11 @@ fi
 
 # Check requirements 
 function checkdependences {
+
+	needed=("aircrack-ng" "/usr/bin/php-cgi" "aireplay-ng" "airmon-ng" "airodump-ng" "awk" "curl" "dhcpd" "hostapd" "iwconfig" "lighttpd" "macchanger" "mdk3" "nmap" "unzip" "pyrit" "python" "xterm")
+	for need in $needed; do echo -ne "$needed ..." ;if ! hash $needed 2>/dev/null; then echo -e "\e[1;31mNot installed"$transparent"" ; salir=1; else echo -e "\e[1;32mOK!"$transparent""; fi; sleep 0.025; done
 	
-	echo -ne "Aircrack-ng....."
-	if ! hash aircrack-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Aireplay-ng....."
-	if ! hash aireplay-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Airmon-ng......."
-	if ! hash airmon-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Airodump-ng....."
-	if ! hash airodump-ng 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Awk............."
-	if ! hash awk 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Curl............"
-	if ! hash curl 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Dhcpd..........."
-	if ! hash dhcpd 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent" (isc-dhcp-server)"
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Hostapd........."
-	if ! hash hostapd 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Iwconfig........"
-	if ! hash iwconfig 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Lighttpd........"
-	if ! hash lighttpd 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Macchanger......"
-	if ! hash macchanger 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-	    echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Mdk3............"
-	if ! hash mdk3 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Nmap............"
-	if ! [ -f /usr/bin/nmap ]; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Php5-cgi........"
-	if ! [ -f /usr/bin/php-cgi ]; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Pyrit..........."
-	if ! hash pyrit 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Python.........."
-	if ! hash python 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Unzip..........."
-	if ! hash unzip 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	echo -ne "Xterm..........."
-	if ! hash xterm 2>/dev/null; then
-		echo -e "\e[1;31mNot installed"$transparent""
-		salir=1
-	else
-		echo -e "\e[1;32mOK!"$transparent""
-	fi
-	sleep 0.025
-	
-	if [ "$salir" = "1" ]; then
-	exit 1
-	fi
+	[ "$salir" = "1" ] && exit 1
 	
 	sleep 1
 	clear
